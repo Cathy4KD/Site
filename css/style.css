@@ -189,22 +189,29 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 /* ===== LIGNE DE TEMPS (moitié droite du chapitre) =====
    Un axe vertical : les actions à gauche de l'axe, les détails à droite.
    Les détails sont encore vides — le gabarit est là, le contenu viendra. */
+/* --det : largeur réservée aux détails, encore vides. --gout : la gouttière
+   dans laquelle passe l'axe. Les colonnes se calent DESSUS, de sorte que l'axe
+   tombe exactement au milieu du vide — pas à 50 % d'une largeur arbitraire. */
 .chrono{margin:0 0 0 auto;padding:0;list-style:none;position:relative;
-  width:min(44vw,600px);color:#fff}
+  width:min(46vw,660px);color:#fff;--det:200px;--gout:44px}
 .panel.light .chrono{color:#33291d}
-.chrono::before{content:"";position:absolute;left:50%;top:.5em;bottom:.5em;
-  width:1px;background:currentColor;opacity:.3}
-.chrono li{display:grid;grid-template-columns:1fr 1fr;column-gap:30px;
-  align-items:baseline;position:relative;padding:clamp(9px,1.5vh,17px) 0}
-/* la pastille sur l'axe */
-.chrono li::before{content:"";position:absolute;left:50%;top:calc(clamp(9px,1.5vh,17px) + .5em);
-  width:7px;height:7px;margin:-3px 0 0 -3.5px;border-radius:50%;
-  background:currentColor;box-shadow:0 0 0 3px rgba(0,0,0,.28)}
-.panel.light .chrono li::before{box-shadow:0 0 0 3px rgba(255,253,247,.6)}
-.c-act{text-align:right;font-size:14.5px;font-weight:500;line-height:1.45}
+.chrono::before{content:"";position:absolute;top:.4em;bottom:.4em;width:1.5px;
+  left:calc(100% - var(--det) - var(--gout)/2);
+  background:currentColor;opacity:.42}
+.chrono li{display:grid;grid-template-columns:1fr var(--det);
+  column-gap:var(--gout);align-items:baseline;position:relative;
+  padding:clamp(10px,1.7vh,19px) 0}
+/* la pastille, centrée sur l'axe */
+.chrono li::before{content:"";position:absolute;
+  left:calc(100% - var(--det) - var(--gout)/2);
+  top:calc(clamp(10px,1.7vh,19px) + .52em);
+  width:9px;height:9px;margin:-4px 0 0 -3.75px;border-radius:50%;
+  background:currentColor;box-shadow:0 0 0 3px rgba(4,10,16,.5)}
+.panel.light .chrono li::before{box-shadow:0 0 0 3px rgba(255,253,247,.7)}
+.c-act{text-align:right;font-size:15px;font-weight:500;line-height:1.45}
 .c-det{font-family:'Spline Sans Mono',monospace;font-size:11.5px;
-  line-height:1.65;opacity:.6}
-.c-det:empty::before{content:"—";opacity:.45}
+  line-height:1.65;opacity:.62}
+.c-det:empty::before{content:"·····";letter-spacing:.25em;opacity:.3}
 /* révélation : après le titre, en cascade le long de l'axe */
 .chrono li{opacity:0;transform:translateY(18px);
   transition:opacity .2s ease,transform .2s ease}

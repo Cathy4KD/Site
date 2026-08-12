@@ -20,17 +20,18 @@
 
 
   function buildPaper(){
-    /* texture reproductible : voir le commentaire de seeded() */
-    const rnd=Matiere.seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
-    const ps=Matiere.scaleFor(RW,RH);
-    paper.width=Math.round(W*ps);paper.height=Math.round(H*ps);
-    /* On dessine TOUJOURS dans un repère de référence fixe, que l on étire
+    /* On dessine TOUJOURS dans un repère de référence fixe, que l'on étire
        ensuite au format réel. Sans cela le nombre de fibres verticales et de
        taches dépendait de la largeur : les boucles consommaient un nombre
        différent de tirages et tout le flux pseudo-aléatoire suivant divergeait.
        Même graine, motif entièrement différent — le papyrus changeait de
-       tissage à chaque reconstruction. C était le flash à l ouverture. */
+       tissage à chaque reconstruction. C'était le flash à l'ouverture.
+       Déclaré EN TÊTE : plus bas, scaleFor tombait dans la zone morte
+       temporelle et la feuille ne se construisait jamais. */
     const RW=900,RH=1200;
+    const rnd=Matiere.seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
+    const ps=Matiere.scaleFor(RW,RH);
+    paper.width=Math.round(W*ps);paper.height=Math.round(H*ps);
     pctx.setTransform(paper.width/RW,0,0,paper.height/RH,0,0);
     pctx.lineCap='round';
     pctx.lineJoin='round';

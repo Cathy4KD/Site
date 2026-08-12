@@ -38,13 +38,14 @@
     }
   }
   function buildMetal(){
+    /* Repère de référence fixe : le compte de traits dépendait de la hauteur,
+       qui change en plein écran, et le brossage se redessinait différemment.
+       Déclaré EN TÊTE — l'avoir laissé plus bas mettait scaleFor dans la zone
+       morte temporelle et la texture ne se construisait jamais. */
+    const RW=900,RH=1200;
     const rr=Matiere.seeded(0x5EED1),RR=(a,b)=>a+rr()*(b-a);
     const ms=Matiere.scaleFor(RW,RH);
     mc.width=Math.round(W*ms);mc.height=Math.round(H*ms);
-    /* repère de référence fixe, voir fibre.js : le compte de traits dépendait
-       de la hauteur, qui change en plein écran, et le brossage se redessinait
-       différemment */
-    const RW=900,RH=1200;
     mx.setTransform(mc.width/RW,0,0,mc.height/RH,0,0);
     const g=mx.createLinearGradient(0,0,RW*.3,RH);
     g.addColorStop(0,'#2c3a4a');g.addColorStop(.4,'#20303f');
