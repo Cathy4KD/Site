@@ -42,9 +42,21 @@
          définitivement la matière. La géométrie étant identique à celle du
          clone, la bascule ne produit aucun saut visible.
          (un clone ne copie que le DOM, jamais le bitmap d'un canvas) */
+      /* Retirer « zooming » retire aussi son flex:none, et .panel reprend la
+         main avec flex:1 ET sa transition de 0,85 s. La tuile repartait donc
+         de sa largeur auto — quasi nulle, ses enfants étant tous en position
+         absolue — pour s'ouvrir en grandissant : on la voyait se refermer puis
+         se rouvrir. Le clone, lui, n'avait jamais porté « zooming ».
+         On coupe donc la transition le temps de la remise en place, avec une
+         lecture de géométrie entre les deux pour forcer le recalcul : sans
+         elle, le navigateur regrouperait les deux écritures et l'animation
+         se déclencherait quand même. */
+      panel.style.transition='none';
       spacer.remove();
       panel.classList.remove('zooming');
       panel.style.top=panel.style.left=panel.style.width=panel.style.height='';
+      panel.getBoundingClientRect();
+      panel.style.transition='';
       spacer=null;openPanel=null;
       document.body.classList.remove('chapter-open');
       setTint(null);
