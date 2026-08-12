@@ -15,7 +15,7 @@
   const FS=`
 #extension GL_OES_standard_derivatives : enable
 precision highp float;
-uniform vec2 uRes;uniform float uT;uniform vec4 uM[10];uniform vec2 uCur;
+uniform vec2 uRes;uniform float uT;uniform vec4 uM[10];uniform vec2 uCur;uniform float uA;
 
 float smin(float a,float b,float k){
   float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
@@ -43,7 +43,11 @@ float surfY(float x,float A,float t){
 }
 
 void main(){
-  float A=uRes.x/uRes.y;
+  /* uRes normalise gl_FragCoord sur le TAMPON ; uA donne le rapport d aspect
+     de la TUILE. Les deux diffèrent pendant un zoom, le tampon étant alloué
+     d emblée au format du plein écran : sans uA, la goutte se déformait
+     pendant toute la transition. */
+  float A=uA;
   vec2 p=gl_FragCoord.xy/uRes;
   vec2 q=vec2(p.x*A,p.y);
   float t=mod(uT,T);
@@ -146,11 +150,14 @@ void main(){
   const uT=gl.getUniformLocation(prog,'uT');
   const uM=gl.getUniformLocation(prog,'uM');
   const uCur=gl.getUniformLocation(prog,'uCur');
+  const uA=gl.getUniformLocation(prog,'uA');
 
   /* uRes sert deux fois : il normalise gl_FragCoord ET donne le rapport
      d aspect au shader. Le figer pendant une transition faisait calculer la
      goutte sur l ancienne forme, puis elle se remettait d un coup. */
+  let pw=1,ph=1;                       /* taille de la tuile, en pixels CSS */
   Matiere.sizing(panel,canvas,{
+    setSize:(w,h)=>{pw=w;ph=h;},
     alloc:(bw,bh)=>{if(bw===canvas.width&&bh===canvas.height)return;
                     canvas.width=bw;canvas.height=bh;
                     gl.viewport(0,0,bw,bh);gl.uniform2f(uRes,bw,bh);},
@@ -184,6 +191,7 @@ void main(){
     gl.uniform1f(uT,(performance.now()-t0)/1000);
     gl.uniform4fv(uM,M);
     gl.uniform2f(uCur,curX,curX>=0?1:0);
+    gl.uniform1f(uA,pw/ph);
     gl.drawArrays(gl.TRIANGLES,0,3);
   }
   (function loop(){draw();requestAnimationFrame(loop);})();

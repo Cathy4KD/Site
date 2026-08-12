@@ -80,8 +80,29 @@ window.Matiere=(function(){
        de 35 % à 15 %. La marge se règle elle-même : on ne réalloue que
        lorsqu'elle est consommée. */
     function cible(exact){
-      return exact?[W,H]:[W*1.15,H*1.15];
+      if(exact)return[W,H];
+      /* Pendant un zoom, la cible est le plein écran : une seule allocation
+         couvre toute la transition et la densité décroît alors de façon
+         continue, sans jamais remonter. Ce sont les remontées qu'on voit
+         comme des flashs. */
+      if(zoom())return[innerWidth,innerHeight];
+      return[W*1.15,H*1.15];
     }
+    /* Un zoom de chapitre et un survol ne demandent pas le même compromis.
+
+       Au SURVOL, cinq tuiles changent de taille en même temps : on prend une
+       marge et on ne réalloue qu'une fois, quand elle est consommée.
+
+       Au ZOOM, une seule tuile bouge — les autres sont figées derrière le plein
+       écran — et l'écart de taille est bien plus grand. On peut donc coller
+       exactement à la tuile, image par image. C'est ce qui compte pour l'œil :
+       avec une marge, la densité se dégrade puis remonte d'un cran à chaque
+       réallocation, et ce sont ces remontées qu'on voyait comme des flashs.
+       Simulation sur la trajectoire d'ouverture : les pics de +12, +15 et +13 %
+       disparaissent, il ne reste que la décrue régulière du budget de pixels.
+       La tuile portrait, elle, n'a aucun canvas — d'où son ouverture sans
+       défaut, qui a mis sur la piste. */
+    const zoom=()=>panel.classList.contains('zooming');
     function alloc(exact){
       const[tw,th]=cible(exact),s=scaleFor(tw,th);
       hooks.alloc(Math.round(tw*s),Math.round(th*s),W,H);
@@ -95,7 +116,11 @@ window.Matiere=(function(){
       if(hooks.setSize)hooks.setSize(W,H);
       if(hooks.transpose&&oW&&oH)hooks.transpose(W/oW,H/oH);
       if(hooks.onSize)hooks.onSize(W,H);
-      if(canvas.width<W*scaleFor(W,H)*0.99){   /* sous-échantillonné : agrandir */
+      const[tw,th]=cible(false);
+      const vise=Math.round(tw*scaleFor(tw,th));
+      /* au zoom la cible ne bouge pas : une seule allocation, au premier appel.
+         au survol : seulement si le tampon est devenu trop petit, donc flou. */
+      if(zoom()?canvas.width!==vise:canvas.width<Math.round(W*scaleFor(W,H))*0.99){
         alloc(false);hooks.redraw();
       }else if(hooks.remap){
         hooks.remap(W,H);
