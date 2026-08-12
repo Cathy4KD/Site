@@ -37,30 +37,38 @@
       trx.stroke();
     }
   }
-  function buildMetal(pw,ph){
-    /* Repère de référence fixe : le compte de traits dépendait de la hauteur,
-       qui change en plein écran, et le brossage se redessinait différemment.
-       Déclaré EN TÊTE — l'avoir laissé plus bas mettait scaleFor dans la zone
-       morte temporelle et la texture ne se construisait jamais. */
-    const RW=900,RH=1200;
-    const rr=Matiere.seeded(0x5EED1),RR=(a,b)=>a+rr()*(b-a);
+  /* Brossage en pixels réels, à densité constante — voir fibre.js. Chaque trait
+     tire sa graine de son indice : en ajouter en bas ne déplace pas ceux du
+     haut, et le grain ne grossit pas quand la tuile s'agrandit. */
+  const trait=n=>Matiere.seeded(0x5EED1^Math.imul(n,2654435761));
+
+  function buildMetal(pw,ph,W,H){   /* W,H : dimensions CIBLES */
     mc.width=pw;mc.height=ph;
-    mx.setTransform(mc.width/RW,0,0,mc.height/RH,0,0);
-    const g=mx.createLinearGradient(0,0,RW*.3,RH);
+    mx.setTransform(pw/W,0,0,ph/H,0,0);
+
+    const g=mx.createLinearGradient(0,0,W*.3,H);
     g.addColorStop(0,'#2c3a4a');g.addColorStop(.4,'#20303f');
     g.addColorStop(.72,'#182430');g.addColorStop(1,'#0d141c');
-    mx.fillStyle=g;mx.fillRect(0,0,RW,RH);
-    for(let i=0;i<RH*1.4;i++){const y=RR(0,RH);
-      mx.strokeStyle=(rr()<.5?'rgba(190,215,240,':'rgba(8,14,22,')+RR(.02,.07).toFixed(3)+')';
-      mx.lineWidth=RR(.5,1.3);
-      mx.beginPath();mx.moveTo(0,y);mx.lineTo(RW,y+RR(-1,1));mx.stroke();}
-    const rg=mx.createRadialGradient(RW*.4,RH*.3,4,RW*.4,RH*.3,RW*1.1);
+    mx.fillStyle=g;mx.fillRect(0,0,W,H);
+
+    /* rayures de brossage : une tous les 0,7 px */
+    const PAS=.7,n=Math.ceil(H/PAS);
+    for(let i=0;i<n;i++){
+      const r=trait(i);
+      const y=i*PAS+(r()*2-1)*PAS*1.5;
+      mx.strokeStyle=(r()<.5?'rgba(190,215,240,':'rgba(8,14,22,')+(.02+r()*.05).toFixed(3)+')';
+      mx.lineWidth=.5+r()*.8;
+      mx.beginPath();mx.moveTo(0,y);mx.lineTo(W,y+(r()*2-1));mx.stroke();
+    }
+
+    const rg=mx.createRadialGradient(W*.4,H*.3,4,W*.4,H*.3,W*1.1);
     rg.addColorStop(0,'rgba(168,196,224,.12)');rg.addColorStop(1,'rgba(168,196,224,0)');
-    mx.fillStyle=rg;mx.fillRect(0,0,RW,RH);
-    const vg=mx.createRadialGradient(RW*.5,RH*.5,RH*.3,RW*.5,RH*.5,RH*.82);
+    mx.fillStyle=rg;mx.fillRect(0,0,W,H);
+    const vg=mx.createRadialGradient(W*.5,H*.5,H*.3,W*.5,H*.5,H*.82);
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.42)');
-    mx.fillStyle=vg;mx.fillRect(0,0,RW,RH);
+    mx.fillStyle=vg;mx.fillRect(0,0,W,H);
   }
+
   /* On transpose l état au lieu de le jeter : effacer la rainure et renvoyer
      l outil au centre coupait net le geste en cours. */
   function transpose(sx,sy){
@@ -206,9 +214,9 @@
     setSize:(w,h)=>{if(!W){Px=w*.5;Py=h*.45;}W=w;H=h;},
     transpose,
     /* le métal se rebâtit avec le tampon, à sa taille — voir fibre.js */
-    alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;
+    alloc:(bw,bh,lw,lh)=>{canvas.width=bw;canvas.height=bh;
                     tr.width=bw;tr.height=bh;matrices();
-                    buildMetal(bw,bh);if(reduce)drawStatic();},
+                    buildMetal(bw,bh,lw,lh);if(reduce)drawStatic();},
     remap:matrices,
     redraw:()=>{if(!reduce)render(last);}
   });

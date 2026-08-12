@@ -105,7 +105,11 @@ window.Matiere=(function(){
     const zoom=()=>panel.classList.contains('zooming');
     function alloc(exact){
       const[tw,th]=cible(exact),s=scaleFor(tw,th);
-      hooks.alloc(Math.round(tw*s),Math.round(th*s),W,H);
+      /* On transmet les dimensions CIBLES, pas les courantes : pendant un zoom
+         le tampon vise déjà le plein écran, et une texture bâtie pour la taille
+         courante serait clairsemée puis étirée — l'effet de loupe qu'on cherche
+         justement à supprimer. */
+      hooks.alloc(Math.round(tw*s),Math.round(th*s),tw,th);
     }
     function sync(){
       const r=panel.getBoundingClientRect();

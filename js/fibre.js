@@ -19,79 +19,104 @@
   const pctx=paper.getContext('2d');
 
 
-  function buildPaper(pw,ph){
-    /* On dessine TOUJOURS dans un repère de référence fixe, que l'on étire
-       ensuite au format réel. Sans cela le nombre de fibres verticales et de
-       taches dépendait de la largeur : les boucles consommaient un nombre
-       différent de tirages et tout le flux pseudo-aléatoire suivant divergeait.
-       Même graine, motif entièrement différent — le papyrus changeait de
-       tissage à chaque reconstruction. C'était le flash à l'ouverture.
-       Déclaré EN TÊTE : plus bas, scaleFor tombait dans la zone morte
-       temporelle et la feuille ne se construisait jamais. */
-    const RW=900,RH=1200;
-    const rnd=Matiere.seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
-    paper.width=pw;paper.height=ph;
-    pctx.setTransform(paper.width/RW,0,0,paper.height/RH,0,0);
-    pctx.lineCap='round';
-    pctx.lineJoin='round';
-    /* fond papyrus : beige chaud */
-    const g=pctx.createLinearGradient(0,0,RW*.15,RH);
-    g.addColorStop(0,'#ecdcb0');g.addColorStop(.5,'#ddc890');g.addColorStop(1,'#ccb075');
-    pctx.fillStyle=g;pctx.fillRect(0,0,RW,RH);
+  /* Le grain se dessine EN PIXELS RÉELS, à densité constante : quand la tuile
+     grandit on voit plus de fibres, pas des fibres plus grosses. Le bâtir dans
+     un repère fixe puis l'étirer donnait un effet de zoom — en plein écran les
+     fibres devenaient des bandes.
 
-    /* grandes plages de tons : casse l'uniformité (pas de grille) */
+     Pour que le motif reste malgré tout identique d'une reconstruction à
+     l'autre, chaque brin tire ses paramètres d'une graine calculée depuis son
+     INDICE, et non d'un flux commun : en ajouter au bas de la feuille ne
+     déplace pas ceux du haut. Un flux commun divergeait dès que le nombre de
+     tirages changeait, et c'est ce qui faisait sauter le motif.
+
+     Les grandes plages de tons et la vignette, elles, sont composées : elles
+     suivent la tuile, comme un éclairage. */
+  const brin=n=>Matiere.seeded(0xFA9B1^Math.imul(n,2654435761));
+  const cellule=(cx,cy)=>Matiere.seeded(0x5A17^Math.imul(cx,73856093)^Math.imul(cy,19349663));
+
+  function buildPaper(pw,ph,W,H){   /* W,H : dimensions CIBLES, pas courantes */
+    paper.width=pw;paper.height=ph;
+    pctx.setTransform(pw/W,0,0,ph/H,0,0);
+    pctx.lineCap='round';pctx.lineJoin='round';
+
+    /* fond papyrus : beige chaud — composition, donc proportionnel */
+    const g=pctx.createLinearGradient(0,0,W*.15,H);
+    g.addColorStop(0,'#ecdcb0');g.addColorStop(.5,'#ddc890');g.addColorStop(1,'#ccb075');
+    pctx.fillStyle=g;pctx.fillRect(0,0,W,H);
+
+    /* plages de tons : casse l'uniformité, suit la tuile */
     for(let i=0;i<7;i++){
-      const x=RR(0,RW),y=RR(0,RH),rr=RR(RH*.2,RH*.55);
+      const r=brin(9000+i);
+      const x=r()*W,y=r()*H,rr=(.2+r()*.35)*H;
       const m=pctx.createRadialGradient(x,y,0,x,y,rr);
-      m.addColorStop(0,rnd()<.5?'rgba(255,246,214,.12)':'rgba(150,120,66,.10)');
+      m.addColorStop(0,r()<.5?'rgba(255,246,214,.12)':'rgba(150,120,66,.10)');
       m.addColorStop(1,'rgba(0,0,0,0)');
       pctx.fillStyle=m;pctx.beginPath();pctx.arc(x,y,rr,0,6.2832);pctx.fill();
     }
 
-    /* grain principal : longues fibres horizontales ondulées (dominante) */
-    const nH=Math.round(RH*1.1);
+    const SEG=60;                    /* pas d'échantillonnage des ondulations */
+
+    /* grain dominant : fibres horizontales, une tous les 0,9 px */
+    const PAS_H=.9,nH=Math.ceil(H/PAS_H);
     for(let i=0;i<nH;i++){
-      const y=RR(-4,RH+4);
-      pctx.strokeStyle=(rnd()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+RR(.03,.11).toFixed(3)+')';
-      pctx.lineWidth=RR(.6,1.7);
-      const amp=RR(.4,1.8),ph=RR(0,6.2832),fq=RR(.01,.03);
+      const r=brin(i);
+      const y=i*PAS_H+(r()*2-1)*PAS_H*1.6;
+      pctx.strokeStyle=(r()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+(.03+r()*.08).toFixed(3)+')';
+      pctx.lineWidth=.6+r()*1.1;
+      const amp=.4+r()*1.4,ph2=r()*6.2832,fq=.01+r()*.02;
       pctx.beginPath();
-      for(let x=0;x<=RW;x+=RW/8){const yy=y+Math.sin(x*fq+ph)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
+      for(let x=0;x<=W;x+=SEG){const yy=y+Math.sin(x*fq+ph2)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
       pctx.stroke();
     }
-    /* sous-couche verticale : grain beaucoup plus faible = fibres croisées discrètes */
-    const nV=Math.round(RW*.5);
+
+    /* sous-couche : fibres croisées, plus rares et plus discrètes */
+    const PAS_V=2,nV=Math.ceil(W/PAS_V);
     for(let i=0;i<nV;i++){
-      const x=RR(-4,RW+4);
-      pctx.strokeStyle=(rnd()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+RR(.02,.06).toFixed(3)+')';
-      pctx.lineWidth=RR(.6,1.4);
-      const amp=RR(.4,1.6),ph=RR(0,6.2832),fq=RR(.01,.03);
+      const r=brin(400000+i);
+      const x=i*PAS_V+(r()*2-1)*PAS_V*1.4;
+      pctx.strokeStyle=(r()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+(.02+r()*.04).toFixed(3)+')';
+      pctx.lineWidth=.6+r()*.8;
+      const amp=.4+r()*1.2,ph2=r()*6.2832,fq=.01+r()*.02;
       pctx.beginPath();
-      for(let y=0;y<=RH;y+=RH/8){const xx=x+Math.sin(y*fq+ph)*amp;y?pctx.lineTo(xx,y):pctx.moveTo(xx,y);}
+      for(let y=0;y<=H;y+=SEG){const xx=x+Math.sin(y*fq+ph2)*amp;y?pctx.lineTo(xx,y):pctx.moveTo(xx,y);}
       pctx.stroke();
     }
-    /* jointures de lamelles : lignes horizontales douces, espacées au hasard */
-    for(let y=RR(20,60);y<RH;y+=RR(30,72)){
-      pctx.strokeStyle='rgba(96,72,36,'+RR(.05,.12).toFixed(3)+')';pctx.lineWidth=RR(.8,1.6);
-      const amp=RR(.6,2),ph=RR(0,6.2832),fq=RR(.008,.02);
+
+    /* jointures de lamelles : une bande tous les ~50 px */
+    const PAS_J=50,nJ=Math.ceil(H/PAS_J);
+    for(let i=1;i<nJ;i++){
+      const r=brin(800000+i);
+      const y=i*PAS_J+(r()*2-1)*PAS_J*.4;
+      pctx.strokeStyle='rgba(96,72,36,'+(.05+r()*.07).toFixed(3)+')';
+      pctx.lineWidth=.8+r()*.8;
+      const amp=.6+r()*1.4,ph2=r()*6.2832,fq=.008+r()*.012;
       pctx.beginPath();
-      for(let x=0;x<=RW;x+=RW/8){const yy=y+Math.sin(x*fq+ph)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
+      for(let x=0;x<=W;x+=SEG){const yy=y+Math.sin(x*fq+ph2)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
       pctx.stroke();
     }
-    /* taches d'âge */
-    const M=Math.round(RW*RH/2600);
-    for(let i=0;i<M;i++){
-      const x=RR(0,RW),y=RR(0,RH),rr=RR(6,26);
-      const m=pctx.createRadialGradient(x,y,0,x,y,rr);
-      m.addColorStop(0,'rgba(120,84,40,'+RR(.03,.08).toFixed(3)+')');
-      m.addColorStop(1,'rgba(120,84,40,0)');
-      pctx.fillStyle=m;pctx.beginPath();pctx.arc(x,y,rr,0,6.2832);pctx.fill();
-    }
-    /* bords vieillis */
-    const vg=pctx.createRadialGradient(RW*.5,RH*.5,RH*.3,RW*.5,RH*.5,RH*.82);
+
+    /* taches d'âge : une par cellule de 51 px, graine tirée des COORDONNÉES de
+       la cellule — une tache donnée reste donc à sa place quelle que soit la
+       taille de la feuille */
+    const CEL=51;
+    for(let cy=0;cy<Math.ceil(H/CEL);cy++)
+      for(let cx=0;cx<Math.ceil(W/CEL);cx++){
+        const r=cellule(cx,cy);
+        if(r()>.62)continue;
+        const x=(cx+r())*CEL,y=(cy+r())*CEL,rr=6+r()*20;
+        const m=pctx.createRadialGradient(x,y,0,x,y,rr);
+        m.addColorStop(0,'rgba(120,84,40,'+(.03+r()*.05).toFixed(3)+')');
+        m.addColorStop(1,'rgba(120,84,40,0)');
+        pctx.fillStyle=m;pctx.beginPath();pctx.arc(x,y,rr,0,6.2832);pctx.fill();
+      }
+
+    /* bords vieillis : composition */
+    const vg=pctx.createRadialGradient(W*.5,H*.5,H*.3,W*.5,H*.5,H*.82);
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(70,46,18,.28)');
-    pctx.fillStyle=vg;pctx.fillRect(0,0,RW,RH);
+    pctx.fillStyle=vg;pctx.fillRect(0,0,W,H);
   }
+
 
   /* les signes déjà écrits suivent l'agrandissement de la feuille */
   function transpose(sx,sy){
@@ -268,7 +293,7 @@
        une fois par zoom, jamais au milieu. Elle coûte ~2200 traits, soit une
        cinquantaine de millisecondes ; deux reconstructions en pleine
        transition faisaient tomber des images. */
-    alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;buildPaper(bw,bh);},
+    alloc:(bw,bh,lw,lh)=>{canvas.width=bw;canvas.height=bh;buildPaper(bw,bh,lw,lh);},
     remap:()=>{dirty=true;},
     redraw:render
   });
