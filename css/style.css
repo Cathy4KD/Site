@@ -94,7 +94,12 @@ header .role{margin-top:10px;font-family:'Spline Sans Mono',monospace;font-size:
   background:#4a6172}
 #stage .p-moi:hover,#stage .p-moi:focus-visible{flex:0 0 clamp(220px,19vw,370px)}
 .p-moi picture{position:absolute;inset:0;z-index:0}
-.p-moi img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 42%}
+/* Le point de mire est animé sur la même durée que le zoom. Sans cela il
+   sautait d'un coup : « open » est retirée dès le clic sur Retour, alors que
+   le panneau occupe encore tout l'écran, et l'image se recadrait brutalement
+   avant même de commencer à rétrécir. */
+.p-moi img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 42%;
+  transition:object-position .9s cubic-bezier(.76,0,.2,1)}
 /* En tuile, la colonne est étroite : le recadrage mange les côtés et toute la
    hauteur reste. En plein écran c'est l'inverse — le cadre devient large, le
    recadrage se fait sur la hauteur et rognait le haut du visage. On remonte
