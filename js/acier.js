@@ -157,6 +157,13 @@
     return pts;
   }
 
+  /* Pendant un zoom, le tampon est alloué d emblée au format du plein écran
+     alors que la tuile part d un format bien plus étroit : la matrice rétablit
+     la géométrie, mais le flou de canvas, lui, s applique en pixels de tampon.
+     Il se retrouvait donc écrasé sur un axe et la lueur devenait une traînée.
+     On s en passe le temps de la transition — les remplissages superposés
+     suffisent à tenir le halo, avec des bords un peu plus francs. */
+  const flou=v=>panel.classList.contains("zooming")?0:v;
   /* remplissage à largeur variable (bords gauche puis droit) */
   function fillPoly(pts,scale,color,blur){
     if(pts.length<2)return;
@@ -172,8 +179,8 @@
 
   function drawStream(pts,t,k,flick){
     if(pts.length<2)return;
-    fillPoly(pts,2.6,`rgba(255,115,25,${(.28*flick).toFixed(3)})`,9);
-    fillPoly(pts,1.45,`rgba(255,170,70,${(.55*flick).toFixed(3)})`,3);
+    fillPoly(pts,2.6,`rgba(255,115,25,${(.28*flick).toFixed(3)})`,flou(9));
+    fillPoly(pts,1.45,`rgba(255,170,70,${(.55*flick).toFixed(3)})`,flou(3));
     fillPoly(pts,1,'#ffb95e');
     fillPoly(pts,.5,'#fff3d0');
     /* filets brillants qui descendent le long du jet */
@@ -215,7 +222,7 @@
     ctx.globalCompositeOperation='source-over';
     /* bouclier invisible : seule la lave qui glisse dessus le révèle —
        liseré incandescent le long de l'arc + calotte qui s'accumule dessus */
-    ctx.filter='blur(1.2px)';
+    if(flou(1))ctx.filter='blur(1.2px)';
     ctx.strokeStyle=`rgba(255,215,140,${(.6+.35*glow).toFixed(3)})`;
     ctx.lineWidth=2.5+1.5*glow;
     ctx.beginPath();ctx.arc(bx,by,R+1.5,-Math.PI*.88,-Math.PI*.12);ctx.stroke();

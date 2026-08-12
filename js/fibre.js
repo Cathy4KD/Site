@@ -19,7 +19,7 @@
   const pctx=paper.getContext('2d');
 
 
-  function buildPaper(){
+  function buildPaper(pw,ph){
     /* On dessine TOUJOURS dans un repère de référence fixe, que l'on étire
        ensuite au format réel. Sans cela le nombre de fibres verticales et de
        taches dépendait de la largeur : les boucles consommaient un nombre
@@ -30,8 +30,7 @@
        temporelle et la feuille ne se construisait jamais. */
     const RW=900,RH=1200;
     const rnd=Matiere.seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
-    const ps=Matiere.scaleFor(RW,RH);
-    paper.width=Math.round(W*ps);paper.height=Math.round(H*ps);
+    paper.width=pw;paper.height=ph;
     pctx.setTransform(paper.width/RW,0,0,paper.height/RH,0,0);
     pctx.lineCap='round';
     pctx.lineJoin='round';
@@ -94,24 +93,10 @@
     pctx.fillStyle=vg;pctx.fillRect(0,0,RW,RH);
   }
 
-  /* Affecter canvas.width réalloue le tampon ET l'efface. Le refaire à
-     chaque image du survol coûtait la fluidité ; ne jamais le refaire donnait
-     du flou puis un saut. On le réaligne au plus une fois toutes les 100 ms,
-     la matrice absorbant l'écart résiduel (< 10 %, invisible). Redessin dans
-     le même rappel, ResizeObserver s'exécutant après les rAF mais avant le
-     rendu : sans cela, une image vide s'affiche. */
-  /* les signes déjà écrits suivent l agrandissement de la feuille */
+  /* les signes déjà écrits suivent l'agrandissement de la feuille */
   function transpose(sx,sy){
     for(const g of glyphs){g.x*=sx;g.y*=sy;}
     if(lastX>=0){lastX*=sx;lastY*=sy;}
-  }
-  let textureT=0,texW=0;
-  /* Le papyrus (~2900 traits) est de loin le plus cher : temporisation propre.
-     Au-delà de 2,5x d écart on le refait tout de suite. */
-  function texture(W){
-    clearTimeout(textureT);
-    if(texW&&(W/texW>2.5||texW/W>2.5)){buildPaper();texW=W;return;}
-    textureT=setTimeout(()=>{buildPaper();texW=W;render();},150);
   }
 
   /* ---- écriture hiéroglyphique ---- */
@@ -279,9 +264,11 @@
   Matiere.sizing(panel,canvas,{
     setSize:(w,h)=>{W=w;H=h;},
     transpose,
-    onSize:texture,
-    alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;
-                    if(!paper.width){buildPaper();texW=W;}},
+    /* La feuille est rebâtie EXACTEMENT quand le tampon l est, à sa taille :
+       une fois par zoom, jamais au milieu. Elle coûte ~2200 traits, soit une
+       cinquantaine de millisecondes ; deux reconstructions en pleine
+       transition faisaient tomber des images. */
+    alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;buildPaper(bw,bh);},
     remap:()=>{dirty=true;},
     redraw:render
   });

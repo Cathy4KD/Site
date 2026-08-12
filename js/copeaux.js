@@ -37,15 +37,14 @@
       trx.stroke();
     }
   }
-  function buildMetal(){
+  function buildMetal(pw,ph){
     /* Repère de référence fixe : le compte de traits dépendait de la hauteur,
        qui change en plein écran, et le brossage se redessinait différemment.
        Déclaré EN TÊTE — l'avoir laissé plus bas mettait scaleFor dans la zone
        morte temporelle et la texture ne se construisait jamais. */
     const RW=900,RH=1200;
     const rr=Matiere.seeded(0x5EED1),RR=(a,b)=>a+rr()*(b-a);
-    const ms=Matiere.scaleFor(RW,RH);
-    mc.width=Math.round(W*ms);mc.height=Math.round(H*ms);
+    mc.width=pw;mc.height=ph;
     mx.setTransform(mc.width/RW,0,0,mc.height/RH,0,0);
     const g=mx.createLinearGradient(0,0,RW*.3,RH);
     g.addColorStop(0,'#2c3a4a');g.addColorStop(.4,'#20303f');
@@ -62,13 +61,6 @@
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.42)');
     mx.fillStyle=vg;mx.fillRect(0,0,RW,RH);
   }
-  /* Le survol anime « flex » sur 0,85 s : la largeur change à chaque image et
-     ResizeObserver tire une cinquantaine de fois d'affilée, sur les cinq tuiles
-     à la fois. Ce qui coûtait cher là-dedans, c'était de refaire le métal
-     (~1500 traits) à chaque appel — pas de réallouer le tampon. Différer le
-     tampon, comme je l'avais fait ensuite, laissait l'image à l'ancienne
-     résolution et au mauvais rapport d'aspect pendant toute la transition,
-     puis tout se remettait d'un coup : flou, puis saut. */
   /* On transpose l état au lieu de le jeter : effacer la rainure et renvoyer
      l outil au centre coupait net le geste en cours. */
   function transpose(sx,sy){
@@ -76,16 +68,6 @@
     for(const c of chips){c.x*=sx;c.y*=sy;}
     for(const s of sparks){s.x*=sx;s.y*=sy;}
     Px*=sx;Py*=sy;
-  }
-  let textureT=0,texW=0;
-  /* Le métal (~1500 traits) coûte un ordre de grandeur de plus qu une
-     réallocation : il garde sa propre temporisation. Au-delà de 2,5x d écart
-     on le refait tout de suite, sinon il resterait étiré six fois pendant
-     l ouverture d un chapitre. */
-  function texture(W){
-    clearTimeout(textureT);
-    if(texW&&(W/texW>2.5||texW/W>2.5)){buildMetal();texW=W;return;}
-    textureT=setTimeout(()=>{buildMetal();texW=W;if(reduce)drawStatic();},150);
   }
   function matrices(){
     ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
@@ -223,10 +205,10 @@
   Matiere.sizing(panel,canvas,{
     setSize:(w,h)=>{if(!W){Px=w*.5;Py=h*.45;}W=w;H=h;},
     transpose,
-    onSize:texture,
+    /* le métal se rebâtit avec le tampon, à sa taille — voir fibre.js */
     alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;
                     tr.width=bw;tr.height=bh;matrices();
-                    if(!mc.width){buildMetal();texW=W;if(reduce)drawStatic();}},
+                    buildMetal(bw,bh);if(reduce)drawStatic();},
     remap:matrices,
     redraw:()=>{if(!reduce)render(last);}
   });
