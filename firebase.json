@@ -12,8 +12,8 @@
     ],
     "headers": [
       {
-        "source": "**/*.@(css|js)",
-        "comment": "max-age=3600 servait du CSS périmé pendant une heure après chaque déploiement, y compris au moment de vérifier son propre travail. Firebase pose des ETags : avec must-revalidate le navigateur redemande à chaque fois et reçoit un 304 vide si rien n'a changé — coût négligeable, fraîcheur garantie.",
+        "source": "**",
+        "comment": "Revalidation sur TOUT, y compris le HTML. La règle ne couvrait d'abord que css|js, et le HTML restait au défaut Firebase d'une heure : après l'ajout de js/socle.js, le navigateur a servi un index.html périmé, sans la balise correspondante. Les modules ont cherché un socle absent et ont tous échoué — un déploiement à moitié appliqué, invisible côté serveur. Firebase pose des ETags : un fichier inchangé ne coûte qu'un 304 vide.",
         "headers": [
           { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
         ]
