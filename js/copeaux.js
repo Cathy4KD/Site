@@ -38,17 +38,30 @@
       trx.stroke();
     }
   }
+  /* Générateur déterministe (mulberry32) réservé à la texture de fond.
+     Avec Math.random(), chaque reconstruction retirait un grain différent :
+     le métal changeait visiblement de brossage à chaque survol. Même graine
+     = même texture, quelle que soit la taille de la tuile. */
+  function seeded(seed){
+    return function(){
+      seed=seed+0x6D2B79F5|0;
+      let t=Math.imul(seed^seed>>>15,1|seed);
+      t=t+Math.imul(t^t>>>7,61|t)^t;
+      return((t^t>>>14)>>>0)/4294967296;
+    };
+  }
   function buildMetal(){
+    const rr=seeded(0x5EED1),RR=(a,b)=>a+rr()*(b-a);
     mc.width=Math.round(W*DPR);mc.height=Math.round(H*DPR);
     mx.setTransform(DPR,0,0,DPR,0,0);
     const g=mx.createLinearGradient(0,0,W*.3,H);
     g.addColorStop(0,'#2c3a4a');g.addColorStop(.4,'#20303f');
     g.addColorStop(.72,'#182430');g.addColorStop(1,'#0d141c');
     mx.fillStyle=g;mx.fillRect(0,0,W,H);
-    for(let i=0;i<H*1.4;i++){const y=R(0,H);
-      mx.strokeStyle=(Math.random()<.5?'rgba(190,215,240,':'rgba(8,14,22,')+R(.02,.07).toFixed(3)+')';
-      mx.lineWidth=R(.5,1.3);
-      mx.beginPath();mx.moveTo(0,y);mx.lineTo(W,y+R(-1,1));mx.stroke();}
+    for(let i=0;i<H*1.4;i++){const y=RR(0,H);
+      mx.strokeStyle=(rr()<.5?'rgba(190,215,240,':'rgba(8,14,22,')+RR(.02,.07).toFixed(3)+')';
+      mx.lineWidth=RR(.5,1.3);
+      mx.beginPath();mx.moveTo(0,y);mx.lineTo(W,y+RR(-1,1));mx.stroke();}
     const rg=mx.createRadialGradient(W*.4,H*.3,4,W*.4,H*.3,W*1.1);
     rg.addColorStop(0,'rgba(168,196,224,.12)');rg.addColorStop(1,'rgba(168,196,224,0)');
     mx.fillStyle=rg;mx.fillRect(0,0,W,H);
@@ -56,6 +69,14 @@
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.42)');
     mx.fillStyle=vg;mx.fillRect(0,0,W,H);
   }
+  /* Le survol anime « flex » sur 0,85 s : la largeur change à chaque image et
+     ResizeObserver tire une cinquantaine de fois d'affilée. Redimensionner le
+     canvas est bon marché, mais reconstruire le métal (~1500 traits) ne l'est
+     pas — le faire à chaque image saccadait la transition elle-même, puisque
+     les deux occupent le fil principal. On garde donc le redimensionnement
+     immédiat et on diffère la texture : entre-temps drawImage l'étire, ce qui
+     ne se voit pas sur un fond brossé. */
+  let rebuildT=0,textured=false;
   function resize(){
     const r=panel.getBoundingClientRect();W=r.width;H=r.height;
     if(!W||!H)return;
@@ -65,8 +86,9 @@
     trx.setTransform(DPR,0,0,DPR,0,0);trx.clearRect(0,0,W,H);
     path.length=0;
     Px=W*.5;Py=H*.45;
-    buildMetal();
-    if(reduce)drawStatic();
+    if(!textured){textured=true;buildMetal();if(reduce)drawStatic();return;}
+    clearTimeout(rebuildT);
+    rebuildT=setTimeout(()=>{buildMetal();if(reduce)drawStatic();},150);
   }
 
   const chips=[],sparks=[];

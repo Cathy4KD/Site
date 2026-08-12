@@ -36,17 +36,30 @@
        image). On plafonne la grille — le rendu est de toute façon adouci
        par l'agrandissement CSS du canvas. */
     const MAXW=420,MAXH=560;
-    function resize(){
+    function rebuild(){
       const r=panel.getBoundingClientRect();
-      w=Math.min(MAXW,Math.max(60,Math.round(r.width/2)));
-      h=Math.min(MAXH,Math.max(60,Math.round(r.height/2)));
+      const nw=Math.min(MAXW,Math.max(60,Math.round(r.width/2)));
+      const nh=Math.min(MAXH,Math.max(60,Math.round(r.height/2)));
+      if(nw===w&&nh===h)return;          /* rien n'a bougé : on ne jette rien */
+      w=nw;h=nh;
       canvas.width=w;canvas.height=h;
       curr=new Float32Array(w*h);prev=new Float32Array(w*h);
       bg=makeBackground(w,h,cfg);
       img=ctx.createImageData(w,h);
     }
-    resize();
-    new ResizeObserver(resize).observe(panel);
+    /* Contrairement aux autres matières, la grille ne peut pas être
+       redimensionnée à bas coût : il faut réallouer deux Float32Array et
+       re-rendre le fond. Pendant le survol (« flex » animé sur 0,85 s),
+       ResizeObserver tire à chaque image — on remettait donc l'eau à plat
+       cinquante fois de suite, ondes comprises. Tout est différé : le temps
+       de la transition, l'ancienne grille est simplement étirée par le CSS,
+       ce qui ne se voit pas sur une surface d'eau. */
+    let resizeT=0;
+    rebuild();
+    new ResizeObserver(()=>{
+      clearTimeout(resizeT);
+      resizeT=setTimeout(rebuild,150);
+    }).observe(panel);
 
     function disturb(px,py,radius,strength){
       const x0=Math.round(px),y0=Math.round(py);

@@ -19,7 +19,22 @@
   const paper=document.createElement('canvas');
   const pctx=paper.getContext('2d');
 
+  /* Générateur déterministe (mulberry32) réservé à la texture du papyrus.
+     Avec Math.random(), chaque reconstruction retirait des fibres et des
+     taches différentes : le papier changeait de motif sous les yeux à chaque
+     survol. Même graine = même feuille, quelle que soit la taille. */
+  function seeded(seed){
+    return function(){
+      seed=seed+0x6D2B79F5|0;
+      let t=Math.imul(seed^seed>>>15,1|seed);
+      t=t+Math.imul(t^t>>>7,61|t)^t;
+      return((t^t>>>14)>>>0)/4294967296;
+    };
+  }
+
   function buildPaper(){
+    /* texture reproductible : voir le commentaire de seeded() */
+    const rnd=seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
     paper.width=Math.round(W*DPR);paper.height=Math.round(H*DPR);
     pctx.setTransform(DPR,0,0,DPR,0,0);
     pctx.lineCap='round';
@@ -31,9 +46,9 @@
 
     /* grandes plages de tons : casse l'uniformité (pas de grille) */
     for(let i=0;i<7;i++){
-      const x=R(0,W),y=R(0,H),rr=R(H*.2,H*.55);
+      const x=RR(0,W),y=RR(0,H),rr=RR(H*.2,H*.55);
       const m=pctx.createRadialGradient(x,y,0,x,y,rr);
-      m.addColorStop(0,Math.random()<.5?'rgba(255,246,214,.12)':'rgba(150,120,66,.10)');
+      m.addColorStop(0,rnd()<.5?'rgba(255,246,214,.12)':'rgba(150,120,66,.10)');
       m.addColorStop(1,'rgba(0,0,0,0)');
       pctx.fillStyle=m;pctx.beginPath();pctx.arc(x,y,rr,0,6.2832);pctx.fill();
     }
@@ -41,10 +56,10 @@
     /* grain principal : longues fibres horizontales ondulées (dominante) */
     const nH=Math.round(H*1.1);
     for(let i=0;i<nH;i++){
-      const y=R(-4,H+4);
-      pctx.strokeStyle=(Math.random()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+R(.03,.11).toFixed(3)+')';
-      pctx.lineWidth=R(.6,1.7);
-      const amp=R(.4,1.8),ph=R(0,6.2832),fq=R(.01,.03);
+      const y=RR(-4,H+4);
+      pctx.strokeStyle=(rnd()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+RR(.03,.11).toFixed(3)+')';
+      pctx.lineWidth=RR(.6,1.7);
+      const amp=RR(.4,1.8),ph=RR(0,6.2832),fq=RR(.01,.03);
       pctx.beginPath();
       for(let x=0;x<=W;x+=W/8){const yy=y+Math.sin(x*fq+ph)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
       pctx.stroke();
@@ -52,18 +67,18 @@
     /* sous-couche verticale : grain beaucoup plus faible = fibres croisées discrètes */
     const nV=Math.round(W*.5);
     for(let i=0;i<nV;i++){
-      const x=R(-4,W+4);
-      pctx.strokeStyle=(Math.random()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+R(.02,.06).toFixed(3)+')';
-      pctx.lineWidth=R(.6,1.4);
-      const amp=R(.4,1.6),ph=R(0,6.2832),fq=R(.01,.03);
+      const x=RR(-4,W+4);
+      pctx.strokeStyle=(rnd()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+RR(.02,.06).toFixed(3)+')';
+      pctx.lineWidth=RR(.6,1.4);
+      const amp=RR(.4,1.6),ph=RR(0,6.2832),fq=RR(.01,.03);
       pctx.beginPath();
       for(let y=0;y<=H;y+=H/8){const xx=x+Math.sin(y*fq+ph)*amp;y?pctx.lineTo(xx,y):pctx.moveTo(xx,y);}
       pctx.stroke();
     }
     /* jointures de lamelles : lignes horizontales douces, espacées au hasard */
-    for(let y=R(20,60);y<H;y+=R(30,72)){
-      pctx.strokeStyle='rgba(96,72,36,'+R(.05,.12).toFixed(3)+')';pctx.lineWidth=R(.8,1.6);
-      const amp=R(.6,2),ph=R(0,6.2832),fq=R(.008,.02);
+    for(let y=RR(20,60);y<H;y+=RR(30,72)){
+      pctx.strokeStyle='rgba(96,72,36,'+RR(.05,.12).toFixed(3)+')';pctx.lineWidth=RR(.8,1.6);
+      const amp=RR(.6,2),ph=RR(0,6.2832),fq=RR(.008,.02);
       pctx.beginPath();
       for(let x=0;x<=W;x+=W/8){const yy=y+Math.sin(x*fq+ph)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
       pctx.stroke();
@@ -71,9 +86,9 @@
     /* taches d'âge */
     const M=Math.round(W*H/2600);
     for(let i=0;i<M;i++){
-      const x=R(0,W),y=R(0,H),rr=R(6,26);
+      const x=RR(0,W),y=RR(0,H),rr=RR(6,26);
       const m=pctx.createRadialGradient(x,y,0,x,y,rr);
-      m.addColorStop(0,'rgba(120,84,40,'+R(.03,.08).toFixed(3)+')');
+      m.addColorStop(0,'rgba(120,84,40,'+RR(.03,.08).toFixed(3)+')');
       m.addColorStop(1,'rgba(120,84,40,0)');
       pctx.fillStyle=m;pctx.beginPath();pctx.arc(x,y,rr,0,6.2832);pctx.fill();
     }
@@ -83,14 +98,23 @@
     pctx.fillStyle=vg;pctx.fillRect(0,0,W,H);
   }
 
+  /* Le survol anime « flex » sur 0,85 s : ResizeObserver tire à chaque image.
+     Redessiner la feuille (~2900 traits, plus les gradients et les taches)
+     autant de fois bloquait le fil principal — celui qui calcule justement la
+     transition. Le canvas est redimensionné tout de suite, la feuille est
+     différée ; entre-temps drawImage étire l'ancienne, ce qui ne se voit pas
+     sur des fibres horizontales. */
+  let rebuildT=0,textured=false;
   function resize(){
     const r=panel.getBoundingClientRect();
     W=r.width;H=r.height;
     if(!W||!H)return;
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
-    buildPaper();
     dirty=true;
+    if(!textured){textured=true;buildPaper();return;}
+    clearTimeout(rebuildT);
+    rebuildT=setTimeout(()=>{buildPaper();dirty=true;},150);
   }
 
   /* ---- écriture hiéroglyphique ---- */
