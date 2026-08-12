@@ -52,8 +52,9 @@
   }
   function buildMetal(){
     const rr=seeded(0x5EED1),RR=(a,b)=>a+rr()*(b-a);
-    mc.width=Math.round(W*DPR);mc.height=Math.round(H*DPR);
-    mx.setTransform(DPR,0,0,DPR,0,0);
+    const ms=scaleFor(W,H);
+    mc.width=Math.round(W*ms);mc.height=Math.round(H*ms);
+    mx.setTransform(ms,0,0,ms,0,0);
     const g=mx.createLinearGradient(0,0,W*.3,H);
     g.addColorStop(0,'#2c3a4a');g.addColorStop(.4,'#20303f');
     g.addColorStop(.72,'#182430');g.addColorStop(1,'#0d141c');
@@ -86,6 +87,18 @@
     for(const s of sparks){s.x*=sx;s.y*=sy;}
     Px*=sx;Py*=sy;
   }
+  /* Budget de pixels par canvas. Mesuré : en plein écran un tampon à pleine
+     densité atteint 7 Mpx — huit fois la taille au repos — redessinés à chaque
+     image. Sur deux ouvertures et deux fermetures de chapitre, douze images
+     étaient perdues pour une seule tâche longue : le coût était donc dans le
+     rendu, pas dans le script. On plafonne, quitte à descendre sous la densité
+     de l écran — ces effets sont doux, la perte ne se voit pas. */
+  const MAXPX=2.4e6;
+  function scaleFor(w,h){
+    const d=Math.min(2,window.devicePixelRatio||1);
+    const px=w*h*d*d;
+    return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
+  }
   const ALLOC_MS=100;
   /* texW : largeur à laquelle la texture a été bâtie. Tant que l'écart reste
      modéré, drawImage l'étire et la reconstruction attend la stabilisation.
@@ -95,10 +108,11 @@
      1,5x, ce qui borne le flou à un niveau imperceptible. */
   let textureT=0,lastAlloc=0,allocT=0,texW=0;
   function alloc(){
-    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    tr.width=Math.round(W*DPR);tr.height=Math.round(H*DPR);
-    trx.setTransform(DPR,0,0,DPR,0,0);
+    const s=scaleFor(W,H);
+    canvas.width=Math.round(W*s);canvas.height=Math.round(H*s);
+    ctx.setTransform(s,0,0,s,0,0);
+    tr.width=Math.round(W*s);tr.height=Math.round(H*s);
+    trx.setTransform(s,0,0,s,0,0);
     lastAlloc=performance.now();
   }
   function syncSize(){
@@ -112,9 +126,10 @@
     /* le métal (~1500 traits) est bien plus cher que le tampon : il garde sa
        propre temporisation, plus longue, et drawImage l'étire entre-temps */
     clearTimeout(textureT);
-    if(texW&&(W/texW>1.5||texW/W>1.5)){buildMetal();texW=W;}
+    if(texW&&(W/texW>2.5||texW/W>2.5)){buildMetal();texW=W;}
     else textureT=setTimeout(()=>{buildMetal();texW=W;if(reduce)drawStatic();},150);
-    const needW=Math.round(W*DPR),needH=Math.round(H*DPR);
+    const ns=scaleFor(W,H);                 /* même échelle que alloc(), sinon le test ne coïncide jamais */
+    const needW=Math.round(W*ns),needH=Math.round(H*ns);
     if(canvas.width!==needW||canvas.height!==needH){
       if(performance.now()-lastAlloc>ALLOC_MS){
         alloc();

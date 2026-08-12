@@ -65,11 +65,24 @@
     branches.forEach(b=>{b.tipY*=sy;});
     for(const rm of remnants){rm.topY*=sy;rm.cx*=sx;rm.cy*=sy;}
   }
+  /* Budget de pixels par canvas. Mesuré : en plein écran un tampon à pleine
+     densité atteint 7 Mpx — huit fois la taille au repos — redessinés à chaque
+     image. Sur deux ouvertures et deux fermetures de chapitre, douze images
+     étaient perdues pour une seule tâche longue : le coût était donc dans le
+     rendu, pas dans le script. On plafonne, quitte à descendre sous la densité
+     de l écran — ces effets sont doux, la perte ne se voit pas. */
+  const MAXPX=2.4e6;
+  function scaleFor(w,h){
+    const d=Math.min(2,window.devicePixelRatio||1);
+    const px=w*h*d*d;
+    return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
+  }
   const ALLOC_MS=100;
   let lastAlloc=0,allocT=0;
   function alloc(){
-    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
+    const s=scaleFor(W,H);
+    canvas.width=Math.round(W*s);canvas.height=Math.round(H*s);
+    ctx.setTransform(s,0,0,s,0,0);
     lastAlloc=performance.now();
   }
   function syncSize(){
@@ -79,7 +92,8 @@
     W=r.width;H=r.height;
     if(oldW===W&&oldH===H)return;
     transpose(oldW,oldH);
-    const needW=Math.round(W*DPR),needH=Math.round(H*DPR);
+    const ns=scaleFor(W,H);                 /* même échelle que alloc(), sinon le test ne coïncide jamais */
+    const needW=Math.round(W*ns),needH=Math.round(H*ns);
     if(canvas.width!==needW||canvas.height!==needH){
       if(performance.now()-lastAlloc>ALLOC_MS){
         alloc();

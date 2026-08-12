@@ -35,8 +35,9 @@
   function buildPaper(){
     /* texture reproductible : voir le commentaire de seeded() */
     const rnd=seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
-    paper.width=Math.round(W*DPR);paper.height=Math.round(H*DPR);
-    pctx.setTransform(DPR,0,0,DPR,0,0);
+    const ps=scaleFor(W,H);
+    paper.width=Math.round(W*ps);paper.height=Math.round(H*ps);
+    pctx.setTransform(ps,0,0,ps,0,0);
     pctx.lineCap='round';
     pctx.lineJoin='round';
     /* fond papyrus : beige chaud */
@@ -111,13 +112,26 @@
     for(const g of glyphs){g.x*=sx;g.y*=sy;}
     if(lastX>=0){lastX*=sx;lastY*=sy;}
   }
+  /* Budget de pixels par canvas. Mesuré : en plein écran un tampon à pleine
+     densité atteint 7 Mpx — huit fois la taille au repos — redessinés à chaque
+     image. Sur deux ouvertures et deux fermetures de chapitre, douze images
+     étaient perdues pour une seule tâche longue : le coût était donc dans le
+     rendu, pas dans le script. On plafonne, quitte à descendre sous la densité
+     de l écran — ces effets sont doux, la perte ne se voit pas. */
+  const MAXPX=2.4e6;
+  function scaleFor(w,h){
+    const d=Math.min(2,window.devicePixelRatio||1);
+    const px=w*h*d*d;
+    return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
+  }
   const ALLOC_MS=100;
   /* voir copeaux.js : au-delà de 1,5x d'écart la feuille est refaite tout de
      suite, sinon elle resterait étirée six fois pendant l'ouverture d'un
      chapitre avant de redevenir nette d'un coup. */
   let textureT=0,lastAlloc=0,allocT=0,texW=0;
   function alloc(){
-    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+    const s=scaleFor(W,H);
+    canvas.width=Math.round(W*s);canvas.height=Math.round(H*s);
     lastAlloc=performance.now();
   }
   function syncSize(){
@@ -130,9 +144,10 @@
     /* le papyrus (~2900 traits) est de loin le plus cher : temporisation
        propre, plus longue, et drawImage étire l'ancienne feuille entre-temps */
     clearTimeout(textureT);
-    if(texW&&(W/texW>1.5||texW/W>1.5)){buildPaper();texW=W;}
+    if(texW&&(W/texW>2.5||texW/W>2.5)){buildPaper();texW=W;}
     else textureT=setTimeout(()=>{buildPaper();texW=W;render();},150);
-    const needW=Math.round(W*DPR),needH=Math.round(H*DPR);
+    const ns=scaleFor(W,H);                 /* même échelle que alloc(), sinon le test ne coïncide jamais */
+    const needW=Math.round(W*ns),needH=Math.round(H*ns);
     if(canvas.width!==needW||canvas.height!==needH){
       if(performance.now()-lastAlloc>ALLOC_MS){
         alloc();render();                      /* le tampon vient d'être effacé */

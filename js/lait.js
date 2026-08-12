@@ -155,12 +155,25 @@ void main(){
      l'erreur d'aspect reste alors sous les 10 %, imperceptible.
      Redessin dans le même rappel, car le tampon fraîchement dimensionné est
      vide et ResizeObserver s'exécute après les requestAnimationFrame. */
+  /* Budget de pixels par canvas. Mesuré : en plein écran un tampon à pleine
+     densité atteint 7 Mpx — huit fois la taille au repos — redessinés à chaque
+     image. Sur deux ouvertures et deux fermetures de chapitre, douze images
+     étaient perdues pour une seule tâche longue : le coût était donc dans le
+     rendu, pas dans le script. On plafonne, quitte à descendre sous la densité
+     de l écran — ces effets sont doux, la perte ne se voit pas. */
+  const MAXPX=2.4e6;
+  function scaleFor(w,h){
+    const d=Math.min(2,window.devicePixelRatio||1);
+    const px=w*h*d*d;
+    return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
+  }
   const ALLOC_MS=100;
   let lastAlloc=0,allocT=0;
   function alloc(){
     const r=panel.getBoundingClientRect();
     if(!r.width||!r.height)return false;
-    const w=Math.round(r.width*DPR),h=Math.round(r.height*DPR);
+    const s=scaleFor(r.width,r.height);
+    const w=Math.round(r.width*s),h=Math.round(r.height*s);
     if(w===canvas.width&&h===canvas.height)return false;
     canvas.width=w;canvas.height=h;
     gl.viewport(0,0,w,h);
