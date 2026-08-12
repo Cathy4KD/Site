@@ -112,7 +112,10 @@
     if(lastX>=0){lastX*=sx;lastY*=sy;}
   }
   const ALLOC_MS=100;
-  let textureT=0,lastAlloc=0,allocT=0;
+  /* voir copeaux.js : au-delà de 1,5x d'écart la feuille est refaite tout de
+     suite, sinon elle resterait étirée six fois pendant l'ouverture d'un
+     chapitre avant de redevenir nette d'un coup. */
+  let textureT=0,lastAlloc=0,allocT=0,texW=0;
   function alloc(){
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     lastAlloc=performance.now();
@@ -127,7 +130,8 @@
     /* le papyrus (~2900 traits) est de loin le plus cher : temporisation
        propre, plus longue, et drawImage étire l'ancienne feuille entre-temps */
     clearTimeout(textureT);
-    textureT=setTimeout(()=>{buildPaper();render();},150);
+    if(texW&&(W/texW>1.5||texW/W>1.5)){buildPaper();texW=W;}
+    else textureT=setTimeout(()=>{buildPaper();texW=W;render();},150);
     const needW=Math.round(W*DPR),needH=Math.round(H*DPR);
     if(canvas.width!==needW||canvas.height!==needH){
       if(performance.now()-lastAlloc>ALLOC_MS){
@@ -304,7 +308,7 @@
 
   (function init(){
     const r=panel.getBoundingClientRect();
-    W=r.width||1;H=r.height||1;alloc();buildPaper();
+    W=r.width||1;H=r.height||1;alloc();buildPaper();texW=W;
   })();
   new ResizeObserver(syncSize).observe(panel);
 

@@ -10,10 +10,22 @@
        visible), puis se détend une fois masqué par le plein écran. */
     spacer=panel.cloneNode(true);
     spacer.classList.add('spacer');
-    /* le clone n'a pas de canvas vivant : on lui rend le décor CSS de secours */
-    spacer.classList.remove('canvasjet');
     spacer.setAttribute('aria-hidden','true');
     spacer.disabled=true;
+    /* cloneNode ne copie que le DOM : les canvas du clone naissent vides. On y
+       recopie l'image courante, ce qui rend le clone indiscernable de la tuile
+       et coûte un simple transfert de pixels.
+       Auparavant je retirais « canvasjet » du clone pour lui rendre le décor
+       CSS de secours : cela rallumait d'un coup 180 éléments animés sur la
+       tuile Acier — 150 étincelles et 30 gouttelettes — plus la coulée CSS et
+       son ombre portée. D'où une saccade au moment précis de l'ouverture. */
+    const src=panel.querySelectorAll('canvas'),dst=spacer.querySelectorAll('canvas');
+    for(let i=0;i<src.length&&i<dst.length;i++){
+      const s=src[i],d=dst[i];
+      if(!s.width||!s.height)continue;
+      d.width=s.width;d.height=s.height;
+      try{d.getContext('2d').drawImage(s,0,0);}catch(_){}
+    }
     spacer.style.flex=getComputedStyle(panel).flex;
     panel.parentNode.insertBefore(spacer,panel);
     setTimeout(()=>{if(spacer)spacer.style.flex=''},1000);
@@ -29,6 +41,13 @@
   function closeChapter(){
     if(!openPanel)return;
     const panel=openPanel;
+    /* Le clone a pu naître à la largeur d'une tuile survolée (flex 2,2) et ne
+       pas encore s'être détendu. Fermer vers CETTE largeur, puis rendre la
+       tuile à sa largeur naturelle, produisait un saut sec à l'arrivée. On
+       détend donc le clone d'abord, transition coupée, et on vise la place
+       réelle qu'occupera la tuile. */
+    spacer.style.transition='none';
+    spacer.style.flex='';
     const r=spacer.getBoundingClientRect();
     panel.classList.remove('open');
     panel.style.top=r.top+'px';panel.style.left=r.left+'px';

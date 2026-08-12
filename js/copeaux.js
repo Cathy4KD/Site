@@ -87,7 +87,13 @@
     Px*=sx;Py*=sy;
   }
   const ALLOC_MS=100;
-  let textureT=0,lastAlloc=0,allocT=0;
+  /* texW : largeur à laquelle la texture a été bâtie. Tant que l'écart reste
+     modéré, drawImage l'étire et la reconstruction attend la stabilisation.
+     Mais à l'ouverture d'un chapitre la tuile grandit d'un facteur six : la
+     texture restait étirée d'autant pendant toute la transition, puis
+     redevenait nette d'un coup. On la refait donc dès que l'écart dépasse
+     1,5x, ce qui borne le flou à un niveau imperceptible. */
+  let textureT=0,lastAlloc=0,allocT=0,texW=0;
   function alloc(){
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -106,7 +112,8 @@
     /* le métal (~1500 traits) est bien plus cher que le tampon : il garde sa
        propre temporisation, plus longue, et drawImage l'étire entre-temps */
     clearTimeout(textureT);
-    textureT=setTimeout(()=>{buildMetal();if(reduce)drawStatic();},150);
+    if(texW&&(W/texW>1.5||texW/W>1.5)){buildMetal();texW=W;}
+    else textureT=setTimeout(()=>{buildMetal();texW=W;if(reduce)drawStatic();},150);
     const needW=Math.round(W*DPR),needH=Math.round(H*DPR);
     if(canvas.width!==needW||canvas.height!==needH){
       if(performance.now()-lastAlloc>ALLOC_MS){
@@ -252,7 +259,7 @@
   (function init(){
     const r=panel.getBoundingClientRect();
     W=r.width||1;H=r.height||1;Px=W*.5;Py=H*.45;
-    alloc();buildMetal();if(reduce)drawStatic();
+    alloc();buildMetal();texW=W;if(reduce)drawStatic();
   })();
   new ResizeObserver(syncSize).observe(panel);
   if(!reduce){last=performance.now();requestAnimationFrame(frame);}
