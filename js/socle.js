@@ -69,10 +69,18 @@ window.Matiere=(function(){
       return[r.width||1,r.height||1];};
     let [W,H]=mesure(),settleT=0;
 
+    /* La marge est UNIFORME : le tampon garde le rapport d'aspect de la tuile.
+       Viser le plein écran pendant un zoom donnait certes une cible stable,
+       mais un tampon au format 2,1 affiché sur une tuile au format 0,46 —
+       une anisotropie de 4,5x. Les matrices rétablissent la géométrie, pas le
+       reste : les flous et les pointillés s'écrasaient horizontalement, et le
+       Lait, en WebGL, n'a aucune matrice — son shader composait pour le format
+       du tampon, donc la goutte se déformait pendant toute la transition.
+       Avec 1,15x uniforme, l'anisotropie tombe à 1,14x et les sauts de netteté
+       de 35 % à 15 %. La marge se règle elle-même : on ne réalloue que
+       lorsqu'elle est consommée. */
     function cible(exact){
-      if(exact)return[W,H];
-      if(panel.classList.contains('zooming'))return[innerWidth,innerHeight];
-      return[W*1.8,H];
+      return exact?[W,H]:[W*1.15,H*1.15];
     }
     function alloc(exact){
       const[tw,th]=cible(exact),s=scaleFor(tw,th);
