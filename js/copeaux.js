@@ -70,33 +70,52 @@
     mx.fillStyle=vg;mx.fillRect(0,0,W,H);
   }
   /* Le survol anime « flex » sur 0,85 s : la largeur change à chaque image et
-     ResizeObserver tire une cinquantaine de fois d'affilée. Redimensionner le
-     canvas est bon marché, mais reconstruire le métal (~1500 traits) ne l'est
-     pas — le faire à chaque image saccadait la transition elle-même, puisque
-     les deux occupent le fil principal. On garde donc le redimensionnement
-     immédiat et on diffère la texture : entre-temps drawImage l'étire, ce qui
-     ne se voit pas sur un fond brossé. */
-  function resize(){
+     ResizeObserver tire une cinquantaine de fois d'affilée, sur les cinq
+     tuiles à la fois. Réallouer le tampon et refaire le métal (~1500 traits)
+     à ce rythme saccadait la transition. Mais garder le tampon figé pendant
+     que le CSS l'étire décale tout ce qu'on y dessine : la plaquette d'outil
+     ne collait plus au curseur.
+
+     D'où deux temps. REMAP, à chaque image : on met à jour W/H et on règle la
+     matrice sur bw/W — dessiner en coordonnées CSS courantes atterrit alors
+     au bon endroit malgré l'étirement, sans rien allouer. RESIZEBUFFER, une
+     fois stabilisé : le tampon reprend sa taille exacte et la netteté avec. */
+  let bw=0,bh=0;                      /* taille réelle des tampons, en pixels */
+  let SX=DPR,SY=DPR;                  /* échelle courante : CSS → tampon */
+
+  function transpose(oldW,oldH){
+    /* On transpose l'état au lieu de le jeter : effacer la rainure et renvoyer
+       l'outil au centre coupait net le geste en cours. */
+    if(!oldW||!oldH||(oldW===W&&oldH===H))return;
+    const sx=W/oldW,sy=H/oldH;
+    for(const p of path){p.x*=sx;p.y*=sy;}
+    for(const c of chips){c.x*=sx;c.y*=sy;}
+    for(const s of sparks){s.x*=sx;s.y*=sy;}
+    Px*=sx;Py*=sy;
+  }
+  function remap(){
+    const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height||!bw)return;
+    const oldW=W,oldH=H;
+    W=r.width;H=r.height;
+    transpose(oldW,oldH);
+    SX=bw/W;SY=bh/H;
+    ctx.setTransform(SX,0,0,SY,0,0);
+    trx.setTransform(SX,0,0,SY,0,0);
+  }
+  function resizeBuffer(){
     const r=panel.getBoundingClientRect();
     if(!r.width||!r.height)return;
     const oldW=W,oldH=H;
     W=r.width;H=r.height;
-    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    tr.width=Math.round(W*DPR);tr.height=Math.round(H*DPR);
-    trx.setTransform(DPR,0,0,DPR,0,0);trx.clearRect(0,0,W,H);
-    /* La tuile change de largeur au survol. On TRANSPOSE l'état vers la
-       nouvelle taille au lieu de le jeter : effacer la rainure et renvoyer
-       l'outil au centre coupait net le geste en cours, juste au moment où
-       l'élargissement se terminait. Les coordonnées sont en pixels CSS, une
-       simple mise à l'échelle suffit. */
-    if(oldW&&oldH){
-      const sx=W/oldW,sy=H/oldH;
-      for(const p of path){p.x*=sx;p.y*=sy;}
-      for(const c of chips){c.x*=sx;c.y*=sy;}
-      for(const s of sparks){s.x*=sx;s.y*=sy;}
-      Px*=sx;Py*=sy;
-    }else{Px=W*.5;Py=H*.45;}
+    transpose(oldW,oldH);
+    if(!oldW||!oldH){Px=W*.5;Py=H*.45;}
+    bw=Math.round(W*DPR);bh=Math.round(H*DPR);
+    canvas.width=bw;canvas.height=bh;
+    tr.width=bw;tr.height=bh;
+    SX=DPR;SY=DPR;
+    ctx.setTransform(SX,0,0,SY,0,0);
+    trx.setTransform(SX,0,0,SY,0,0);
     buildMetal();
     if(reduce)drawStatic();
   }
@@ -166,7 +185,7 @@
   }
 
   function drawStatic(){
-    ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+    ctx.setTransform(SX,0,0,SY,0,0);ctx.clearRect(0,0,W,H);
     ctx.drawImage(mc,0,0,W,H);drawInsert();drawGlow(.9);
     for(let i=0;i<9;i++){const a=-2.3+i*.16;
       drawChip({x:Px+Math.cos(a)*(30+i*10),y:Py+Math.sin(a)*(30+i*9),
@@ -182,7 +201,7 @@
       accC+=dt*cut*24;while(accC>=1){accC--;spawnChip();}
       accS+=dt*cut*230;while(accS>=1){accS--;spawnSpark();}
     }
-    ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+    ctx.setTransform(SX,0,0,SY,0,0);ctx.clearRect(0,0,W,H);
     ctx.drawImage(mc,0,0,W,H);
     /* rainure entière redessinée lissée, puis composée à opacité fixe */
     drawTrace(now/1000);
@@ -228,9 +247,11 @@
   panel.addEventListener('pointerleave',()=>{over=false;pmx=-1;pmy=-1;});
 
   let resizeT=0;
-  resize();
+  resizeBuffer();
   new ResizeObserver(()=>{
-    clearTimeout(resizeT);resizeT=setTimeout(resize,150);
+    remap();                                  /* alignement immédiat, sans allocation */
+    clearTimeout(resizeT);
+    resizeT=setTimeout(resizeBuffer,150);     /* netteté rétablie une fois stabilisé */
   }).observe(panel);
   if(!reduce){last=performance.now();requestAnimationFrame(frame);}
 })();

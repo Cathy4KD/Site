@@ -44,29 +44,45 @@
      survol, « flex » est animé sur 0,85 s et les cinq tuiles se partagent la
      rangée : l'observateur tire à chaque image, sur chaque tuile. On rejouait
      donc cette réallocation une cinquantaine de fois par survol et par canvas.
-     Tout est différé de 150 ms ; entre-temps le CSS étire l'ancien tampon, et
-     comme l'étirement est proportionnel le jet reste à sa place. */
+     Tout est différé de 150 ms ; entre-temps remap() recale la matrice pour
+     que le dessin reste aligné sur le curseur malgré l'étirement. */
+  let bw=0,bh=0;                      /* taille réelle du tampon, en pixels */
+  /* Étincelles et tronçons en vol sont transposés vers la nouvelle taille :
+     sinon ils sautaient d'un coup à la fin de l'élargissement. Le garde
+     « oldW » saute ce bloc au tout premier appel, où parts et branches ne
+     sont pas encore déclarés. */
+  function transpose(oldW,oldH){
+    if(!oldW||!oldH||(oldW===W&&oldH===H))return;
+    const sx=W/oldW,sy=H/oldH;
+    for(const p of parts){p.x*=sx;p.y*=sy;}
+    branches.forEach(b=>{b.tipY*=sy;});
+    for(const rm of remnants){rm.topY*=sy;rm.cx*=sx;rm.cy*=sy;}
+  }
   function applyResize(){
     const r=panel.getBoundingClientRect();
     if(!r.width||!r.height)return;
     const oldW=W,oldH=H;
     W=r.width;H=r.height;
-    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+    transpose(oldW,oldH);
+    bw=Math.round(W*DPR);bh=Math.round(H*DPR);
+    canvas.width=bw;canvas.height=bh;
     ctx.setTransform(DPR,0,0,DPR,0,0);
-    /* Étincelles et tronçons en vol sont transposés vers la nouvelle taille :
-       sinon ils sautaient d'un coup à la fin de l'élargissement. Le garde
-       « oldW » saute ce bloc au tout premier appel, où parts et branches ne
-       sont pas encore déclarés. */
-    if(oldW&&oldH){
-      const sx=W/oldW,sy=H/oldH;
-      for(const p of parts){p.x*=sx;p.y*=sy;}
-      branches.forEach(b=>{b.tipY*=sy;});
-      for(const rm of remnants){rm.topY*=sy;rm.cx*=sx;rm.cy*=sy;}
-    }
+  }
+  /* Recalage immédiat sans allocation : tant que le tampon garde son ancienne
+     taille, on règle la matrice sur bw/W pour que le jet et la sphère restent
+     alignés sur le curseur malgré l'étirement CSS. */
+  function remap(){
+    const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height||!bw)return;
+    const oldW=W,oldH=H;
+    W=r.width;H=r.height;
+    transpose(oldW,oldH);
+    ctx.setTransform(bw/W,0,0,bh/H,0,0);
   }
   let resizeT=0;
   applyResize();
   new ResizeObserver(()=>{
+    remap();
     clearTimeout(resizeT);resizeT=setTimeout(applyResize,150);
   }).observe(panel);
 

@@ -101,22 +101,39 @@
   /* Le survol anime « flex » sur 0,85 s : ResizeObserver tire à chaque image.
      Redessiner la feuille (~2900 traits, plus les gradients et les taches)
      autant de fois bloquait le fil principal — celui qui calcule justement la
-     transition. Le canvas est redimensionné tout de suite, la feuille est
-     différée ; entre-temps drawImage étire l'ancienne, ce qui ne se voit pas
-     sur des fibres horizontales. */
+     transition. On procède donc en deux temps : remap() recale la matrice à
+     chaque image, sans rien allouer, pour que les signes restent sous le
+     curseur malgré l'étirement ; resize() refait la feuille une fois la tuile
+     stabilisée. */
+  let bw=0,bh=0;                      /* taille réelle du tampon, en pixels */
+  let SX=DPR,SY=DPR;                  /* échelle courante : CSS → tampon */
+
+  /* les signes déjà écrits suivent l'agrandissement de la feuille */
+  function transpose(oldW,oldH){
+    if(!oldW||!oldH||(oldW===W&&oldH===H))return;
+    const sx=W/oldW,sy=H/oldH;
+    for(const g of glyphs){g.x*=sx;g.y*=sy;}
+    if(lastX>=0){lastX*=sx;lastY*=sy;}
+  }
+  function remap(){
+    const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height||!bw)return;
+    const oldW=W,oldH=H;
+    W=r.width;H=r.height;
+    transpose(oldW,oldH);
+    SX=bw/W;SY=bh/H;
+    dirty=true;
+  }
   function resize(){
     const r=panel.getBoundingClientRect();
     if(!r.width||!r.height)return;
     const oldW=W,oldH=H;
     W=r.width;H=r.height;
-    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    /* les signes déjà écrits suivent l'agrandissement de la feuille */
-    if(oldW&&oldH){
-      const sx=W/oldW,sy=H/oldH;
-      for(const g of glyphs){g.x*=sx;g.y*=sy;}
-      if(lastX>=0){lastX*=sx;lastY*=sy;}
-    }
+    transpose(oldW,oldH);
+    bw=Math.round(W*DPR);bh=Math.round(H*DPR);
+    canvas.width=bw;canvas.height=bh;
+    SX=DPR;SY=DPR;
+    ctx.setTransform(SX,0,0,SY,0,0);
     buildPaper();
     dirty=true;
   }
@@ -264,7 +281,7 @@
   }
 
   function render(){
-    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.setTransform(SX,0,0,SY,0,0);
     ctx.clearRect(0,0,W,H);
     ctx.drawImage(paper,0,0,W,H);
     const t=now();
@@ -286,6 +303,7 @@
   let resizeT=0;
   resize();
   new ResizeObserver(()=>{
+    remap();
     clearTimeout(resizeT);resizeT=setTimeout(resize,150);
   }).observe(panel);
 
