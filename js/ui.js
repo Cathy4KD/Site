@@ -94,7 +94,11 @@
     if(!p||openPanel)return;
     if(p.contains(e.relatedTarget))return;
     clearTimeout(tintOut);clearTimeout(tintIn);
-    tintIn=setTimeout(()=>setTint(p.dataset.chapter),90);
+    /* 90 ms d'attente avant de teinter, sur une transition raccourcie, faisait
+       encore traîner le halo derrière le curseur : ramené à 45 ms. Le délai
+       reste utile — il évite d'allumer cinq teintes pendant un simple
+       balayage — mais il n'a plus à couvrir une transition d'une seconde. */
+    tintIn=setTimeout(()=>setTint(p.dataset.chapter),45);
   });
   row.addEventListener('mouseout',e=>{
     const p=e.target.closest('.panel');

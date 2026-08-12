@@ -33,7 +33,10 @@ body{overflow:hidden;
 /* le halo de fond : deux calques qui se croisent en fondu — jamais de saut */
 #glow,.tint{position:fixed;inset:0;z-index:-1;pointer-events:none}
 #glow{background-image:var(--page-glow)}
-.tint{opacity:0;transition:opacity 1.1s cubic-bezier(.4,.2,.2,1);will-change:opacity}
+/* Le halo de matière restait sur 1,1 s : en balayant la rangée il traînait
+   plusieurs tuiles en arrière. Assez lent pour rester une ambiance, assez
+   court pour suivre. */
+.tint{opacity:0;transition:opacity .55s cubic-bezier(.4,.2,.2,1);will-change:opacity}
 .tint.on{opacity:1}
 
 /* ===== bascule de thème : balayage circulaire en va-et-vient =====
@@ -83,7 +86,14 @@ header .role{margin-top:10px;font-family:'Spline Sans Mono',monospace;font-size:
   isolation:isolate;cursor:pointer;user-select:none;border:none;padding:0;text-align:left;
   contain:layout paint;container-type:inline-size;
   box-shadow:var(--panel-shadow),inset 0 0 0 1px rgba(255,255,255,.06);
-  transition:flex .85s cubic-bezier(.76,0,.2,1)}
+  /* Survol : 0,34 s, et une courbe qui démarre vite pour se poser doucement.
+     À 0,85 s avec cubic-bezier(.76,0,.2,1) — courbe lente aux deux bouts — une
+     tuile n'avait pas fini de s'ouvrir que la suivante commençait dès qu'on
+     balayait la rangée : elle donnait l'impression de tanguer. Cette durée-là
+     convient à l'ouverture d'un chapitre, un geste délibéré ; pas à un survol,
+     qui doit répondre. Bénéfice second : trois fois moins d'images de
+     transition, donc trois fois moins de redimensionnements à absorber. */
+  transition:flex .34s cubic-bezier(.22,.72,.24,1)}
 #stage .panel:hover,#stage .panel:focus-visible{flex:2.2}
 /* pendant qu'un chapitre est ouvert ou en cours de retour :
    la rangée est gelée — aucun survol ne peut décaler la place du panneau */
@@ -141,7 +151,9 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 /* survol : ce qu'elle y a fait */
 .info{position:absolute;z-index:21;left:20px;right:20px;bottom:76px;color:#fff;
   pointer-events:none;opacity:0;transform:translateY(16px);
-  transition:opacity .5s ease .15s,transform .5s cubic-bezier(.2,.8,.2,1) .15s;
+  /* l'encart suivait à 0,65 s (0,15 de retard + 0,5 de fondu) : il arrivait
+     après coup quand on passait vite. Recalé sur la tuile. */
+  transition:opacity .3s ease .06s,transform .3s cubic-bezier(.2,.8,.2,1) .06s;
   text-shadow:0 1px 10px rgba(0,0,0,.55)}
 #stage .panel:hover .info,#stage .panel:focus-visible .info{opacity:1;transform:none}
 .info .yr{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.2em}
