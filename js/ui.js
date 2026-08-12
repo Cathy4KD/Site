@@ -135,6 +135,7 @@
 
   /* ===== halo de matière : crossfade fluide entre deux calques ===== */
   const TINTS={
+    moi:'radial-gradient(ellipse at 50% 40%,rgba(74,97,114,.16),rgba(40,56,68,.07) 55%,transparent 80%)',
     eau:'radial-gradient(ellipse at 50% 40%,rgba(31,122,114,.16),rgba(8,80,90,.07) 55%,transparent 80%)',
     copeaux:'radial-gradient(ellipse at 50% 40%,rgba(62,106,149,.15),rgba(32,48,63,.08) 55%,transparent 80%)',
     fibre:'radial-gradient(ellipse at 50% 40%,rgba(176,143,68,.17),rgba(125,101,56,.08) 55%,transparent 80%)',
