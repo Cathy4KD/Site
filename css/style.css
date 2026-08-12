@@ -179,9 +179,42 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
   transition:opacity .25s ease} /* fermeture : disparition immédiate */
 .panel.zooming.open .detail{opacity:1;pointer-events:auto;
   transition:opacity .7s ease .55s} /* ouverture : après le zoom */
+/* Le voile s'arrêtait à 78 % : la moitié droite restait à nu. La ligne de
+   temps y vit désormais, donc il court jusqu'au bord — en s'allégeant, pour
+   que la matière continue de transparaître derrière. */
 .detail::before{content:"";position:absolute;inset:0;z-index:-1;
-  background:linear-gradient(100deg,rgba(4,10,16,.78) 0%,rgba(4,10,16,.55) 46%,transparent 78%)}
-.panel.light .detail::before{background:linear-gradient(100deg,rgba(255,253,247,.88) 0%,rgba(255,253,247,.6) 46%,transparent 78%)}
+  background:linear-gradient(100deg,rgba(4,10,16,.80) 0%,rgba(4,10,16,.58) 46%,rgba(4,10,16,.40) 100%)}
+.panel.light .detail::before{background:linear-gradient(100deg,rgba(255,253,247,.90) 0%,rgba(255,253,247,.64) 46%,rgba(255,253,247,.46) 100%)}
+
+/* ===== LIGNE DE TEMPS (moitié droite du chapitre) =====
+   Un axe vertical : les actions à gauche de l'axe, les détails à droite.
+   Les détails sont encore vides — le gabarit est là, le contenu viendra. */
+.chrono{margin:0 0 0 auto;padding:0;list-style:none;position:relative;
+  width:min(44vw,600px);color:#fff}
+.panel.light .chrono{color:#33291d}
+.chrono::before{content:"";position:absolute;left:50%;top:.5em;bottom:.5em;
+  width:1px;background:currentColor;opacity:.3}
+.chrono li{display:grid;grid-template-columns:1fr 1fr;column-gap:30px;
+  align-items:baseline;position:relative;padding:clamp(9px,1.5vh,17px) 0}
+/* la pastille sur l'axe */
+.chrono li::before{content:"";position:absolute;left:50%;top:calc(clamp(9px,1.5vh,17px) + .5em);
+  width:7px;height:7px;margin:-3px 0 0 -3.5px;border-radius:50%;
+  background:currentColor;box-shadow:0 0 0 3px rgba(0,0,0,.28)}
+.panel.light .chrono li::before{box-shadow:0 0 0 3px rgba(255,253,247,.6)}
+.c-act{text-align:right;font-size:14.5px;font-weight:500;line-height:1.45}
+.c-det{font-family:'Spline Sans Mono',monospace;font-size:11.5px;
+  line-height:1.65;opacity:.6}
+.c-det:empty::before{content:"—";opacity:.45}
+/* révélation : après le titre, en cascade le long de l'axe */
+.chrono li{opacity:0;transform:translateY(18px);
+  transition:opacity .2s ease,transform .2s ease}
+.panel.zooming.open .chrono li{opacity:1;transform:none;
+  transition:opacity .55s ease,transform .55s cubic-bezier(.2,.8,.2,1)}
+.panel.zooming.open .chrono li:nth-child(1){transition-delay:.95s}
+.panel.zooming.open .chrono li:nth-child(2){transition-delay:1.05s}
+.panel.zooming.open .chrono li:nth-child(3){transition-delay:1.15s}
+.panel.zooming.open .chrono li:nth-child(4){transition-delay:1.25s}
+.panel.zooming.open .chrono li:nth-child(5){transition-delay:1.35s}
 .d-inner{max-width:560px;color:#fff}
 .panel.light .d-inner{color:#33291d}
 .d-kicker{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.3em;
