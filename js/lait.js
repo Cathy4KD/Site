@@ -148,28 +148,36 @@ void main(){
   const uM=gl.getUniformLocation(prog,'uM');
   const uCur=gl.getUniformLocation(prog,'uCur');
 
-  /* Le shader tire son rapport d'aspect de uRes : différer la mise à jour le
-     laissait calculer sur l'ancienne forme pendant toute la transition, puis
-     la goutte se remettait d'un coup — le saut. Le tampon suit donc la tuile
-     immédiatement. Un redimensionnement WebGL ne coûte qu'une réallocation et
-     deux appels : rien de comparable à un rendu logiciel.
-     On redessine dans la foulée, car le rappel de ResizeObserver arrive après
-     les requestAnimationFrame et le tampon fraîchement dimensionné est vide —
-     sans ce dessin, une image entièrement blanche s'affiche. */
-  function applyResize(){
+  /* Le shader tire son rapport d'aspect de uRes : figer uRes pendant toute la
+     transition le faisait calculer sur l'ancienne forme, et la goutte se
+     remettait d'un coup à la fin — le saut. Le réaligner à chaque image coûtait
+     la fluidité. On le réaligne donc au plus une fois toutes les 100 ms :
+     l'erreur d'aspect reste alors sous les 10 %, imperceptible.
+     Redessin dans le même rappel, car le tampon fraîchement dimensionné est
+     vide et ResizeObserver s'exécute après les requestAnimationFrame. */
+  const ALLOC_MS=100;
+  let lastAlloc=0,allocT=0;
+  function alloc(){
     const r=panel.getBoundingClientRect();
     if(!r.width||!r.height)return false;
     const w=Math.round(r.width*DPR),h=Math.round(r.height*DPR);
     if(w===canvas.width&&h===canvas.height)return false;
     canvas.width=w;canvas.height=h;
     gl.viewport(0,0,w,h);
-    gl.uniform2f(uRes,w,h);
+    gl.uniform2f(uRes,w,h);          /* uRes normalise p ET donne le rapport d'aspect */
+    lastAlloc=performance.now();
     return true;
   }
-  applyResize();
-  new ResizeObserver(()=>{
-    if(applyResize())draw();
-  }).observe(panel);
+  function syncSize(){
+    if(performance.now()-lastAlloc>ALLOC_MS){
+      if(alloc())draw();             /* le tampon vient d'être effacé */
+      return;
+    }
+    clearTimeout(allocT);
+    allocT=setTimeout(()=>{if(alloc())draw();},ALLOC_MS+40);
+  }
+  alloc();
+  new ResizeObserver(syncSize).observe(panel);
 
   const M=new Float32Array(40);
   let mi=0,lastMx=-1,lastAdd=0,curX=-1,t0=performance.now();

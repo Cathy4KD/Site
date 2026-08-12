@@ -86,27 +86,39 @@
     for(const s of sparks){s.x*=sx;s.y*=sy;}
     Px*=sx;Py*=sy;
   }
-  /* Le tampon suit la tuile immédiatement — c'est bon marché et cela garde la
-     résolution et le rapport d'aspect justes tout du long. Seul buildMetal()
-     (~1500 traits) reste différé : entre-temps drawImage étire l'ancienne
-     texture, ce qui ne se voit pas sur un fond brossé. */
-  let textureT=0;
-  function resize(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return false;
-    const oldW=W,oldH=H;
-    W=r.width;H=r.height;
-    if(oldW===W&&oldH===H)return false;
-    transpose(oldW,oldH);
-    if(!oldW||!oldH){Px=W*.5;Py=H*.45;}
+  const ALLOC_MS=100;
+  let textureT=0,lastAlloc=0,allocT=0;
+  function alloc(){
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
     tr.width=Math.round(W*DPR);tr.height=Math.round(H*DPR);
     trx.setTransform(DPR,0,0,DPR,0,0);
-    if(!mc.width)buildMetal();                 /* première fois : tout de suite */
+    lastAlloc=performance.now();
+  }
+  function syncSize(){
+    const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height)return;
+    const oldW=W,oldH=H;
+    W=r.width;H=r.height;
+    if(oldW===W&&oldH===H)return;
+    transpose(oldW,oldH);
+    if(!oldW||!oldH){Px=W*.5;Py=H*.45;}
+    /* le métal (~1500 traits) est bien plus cher que le tampon : il garde sa
+       propre temporisation, plus longue, et drawImage l'étire entre-temps */
     clearTimeout(textureT);
     textureT=setTimeout(()=>{buildMetal();if(reduce)drawStatic();},150);
-    return true;
+    const needW=Math.round(W*DPR),needH=Math.round(H*DPR);
+    if(canvas.width!==needW||canvas.height!==needH){
+      if(performance.now()-lastAlloc>ALLOC_MS){
+        alloc();
+        if(!reduce)render(performance.now());   /* le tampon vient d'être effacé */
+        return;
+      }
+      clearTimeout(allocT);
+      allocT=setTimeout(()=>{alloc();if(!reduce)render(performance.now());},ALLOC_MS+40);
+    }
+    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+    trx.setTransform(tr.width/W,0,0,tr.height/H,0,0);
   }
 
   const chips=[],sparks=[];
@@ -174,7 +186,7 @@
   }
 
   function drawStatic(){
-    ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);ctx.clearRect(0,0,W,H);
     ctx.drawImage(mc,0,0,W,H);drawInsert();drawGlow(.9);
     for(let i=0;i<9;i++){const a=-2.3+i*.16;
       drawChip({x:Px+Math.cos(a)*(30+i*10),y:Py+Math.sin(a)*(30+i*9),
@@ -190,7 +202,7 @@
       accC+=dt*cut*24;while(accC>=1){accC--;spawnChip();}
       accS+=dt*cut*230;while(accS>=1){accS--;spawnSpark();}
     }
-    ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);ctx.clearRect(0,0,W,H);
     ctx.drawImage(mc,0,0,W,H);
     /* rainure entière redessinée lissée, puis composée à opacité fixe */
     drawTrace(now/1000);
@@ -235,9 +247,11 @@
   panel.addEventListener('pointerenter',e=>{const[x,y]=pos(e);pmx=x;pmy=y;Px=x;Py=y;over=true;});
   panel.addEventListener('pointerleave',()=>{over=false;pmx=-1;pmy=-1;});
 
-  resize();
-  new ResizeObserver(()=>{
-    if(resize()&&!reduce)render(performance.now());  /* pas d'image vide */
-  }).observe(panel);
+  (function init(){
+    const r=panel.getBoundingClientRect();
+    W=r.width||1;H=r.height||1;Px=W*.5;Py=H*.45;
+    alloc();buildMetal();if(reduce)drawStatic();
+  })();
+  new ResizeObserver(syncSize).observe(panel);
   if(!reduce){last=performance.now();requestAnimationFrame(frame);}
 })();

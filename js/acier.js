@@ -40,17 +40,21 @@
   let W=0,H=0,mx=-1,my=-1;
   let bx=-200,by=-200,heat=0;          /* sphère amortie + chauffe progressive */
 
-  /* Le tampon suit la tuile IMMÉDIATEMENT. Le différer laissait l'image à
-     l'ancienne résolution et au mauvais rapport d'aspect pendant les 0,85 s
-     de la transition, puis tout se remettait d'un coup : flou, puis saut.
-     Réallouer un tampon est bien moins cher que ce que je craignais — le vrai
-     coût était la reconstruction des textures, qui reste seule différée.
+  /* Affecter canvas.width réalloue le tampon ET l'efface : c'est l'opération
+     chère. Les deux extrêmes que j'ai essayés sont mauvais — le redimensionner
+     à chaque image du survol (une cinquantaine de fois, sur cinq tuiles) coûte
+     la fluidité ; ne jamais le redimensionner donne du flou, un mauvais
+     rapport d'aspect, puis un saut en fin de course.
 
-     Reste un piège : les rappels de ResizeObserver s'exécutent APRÈS les
-     requestAnimationFrame mais AVANT le rendu, et affecter canvas.width efface
-     le canvas. Redimensionner sans redessiner dans la foulée affichait donc
-     une image entièrement vide — le clignotement. D'où l'appel à step() juste
-     après, dans le même rappel. */
+     Compromis : on réaligne le tampon au plus une fois toutes les 100 ms, et
+     la matrice absorbe l'écart résiduel — qui reste sous les 10 %, donc
+     invisible, là où 80 % ne l'était pas. La géométrie est ainsi juste en
+     permanence, pour huit réallocations par transition au lieu de cinquante.
+
+     À noter : les rappels de ResizeObserver s'exécutent APRÈS les
+     requestAnimationFrame mais AVANT le rendu. Comme la réallocation efface le
+     canvas, il faut redessiner dans le même rappel, sinon une image
+     entièrement vide s'affiche — c'était le clignotement. */
   /* Étincelles et tronçons en vol sont transposés vers la nouvelle taille :
      sinon ils sautaient d'un coup. Le garde « oldW » saute ce bloc au tout
      premier appel, où parts et branches ne sont pas encore déclarés. */
@@ -61,21 +65,38 @@
     branches.forEach(b=>{b.tipY*=sy;});
     for(const rm of remnants){rm.topY*=sy;rm.cx*=sx;rm.cy*=sy;}
   }
-  function applyResize(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return false;
-    const oldW=W,oldH=H;
-    W=r.width;H=r.height;
-    if(oldW===W&&oldH===H)return false;
-    transpose(oldW,oldH);
+  const ALLOC_MS=100;
+  let lastAlloc=0,allocT=0;
+  function alloc(){
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
-    return true;
+    lastAlloc=performance.now();
   }
-  applyResize();
-  new ResizeObserver(()=>{
-    if(applyResize())step(performance.now());   /* redessin immédiat : pas d'image vide */
-  }).observe(panel);
+  function syncSize(){
+    const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height)return;
+    const oldW=W,oldH=H;
+    W=r.width;H=r.height;
+    if(oldW===W&&oldH===H)return;
+    transpose(oldW,oldH);
+    const needW=Math.round(W*DPR),needH=Math.round(H*DPR);
+    if(canvas.width!==needW||canvas.height!==needH){
+      if(performance.now()-lastAlloc>ALLOC_MS){
+        alloc();
+        step(performance.now());        /* le tampon vient d'être effacé */
+        return;
+      }
+      clearTimeout(allocT);             /* réalignement final, taille exacte */
+      allocT=setTimeout(()=>{alloc();step(performance.now());},ALLOC_MS+40);
+    }
+    /* écart résiduel (< 10 %) absorbé par la matrice : géométrie toujours juste */
+    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+  }
+  (function init(){
+    const r=panel.getBoundingClientRect();
+    W=r.width||1;H=r.height||1;alloc();
+  })();
+  new ResizeObserver(syncSize).observe(panel);
 
   panel.addEventListener('pointermove',e=>{
     const r=panel.getBoundingClientRect();

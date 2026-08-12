@@ -98,13 +98,12 @@
     pctx.fillStyle=vg;pctx.fillRect(0,0,W,H);
   }
 
-  /* Le tampon suit la tuile immédiatement : le différer laissait la feuille
-     à l'ancienne résolution puis la remettait d'un coup. Seule la
-     reconstruction du papyrus (~2900 traits) reste différée — entre-temps
-     drawImage étire l'ancienne feuille, invisible sur des fibres
-     horizontales. Le rappel de ResizeObserver arrivant après les
-     requestAnimationFrame, on redessine dans la foulée : sans cela le canvas
-     fraîchement dimensionné, donc vide, s'affiche pendant une image. */
+  /* Affecter canvas.width réalloue le tampon ET l'efface. Le refaire à
+     chaque image du survol coûtait la fluidité ; ne jamais le refaire donnait
+     du flou puis un saut. On le réaligne au plus une fois toutes les 100 ms,
+     la matrice absorbant l'écart résiduel (< 10 %, invisible). Redessin dans
+     le même rappel, ResizeObserver s'exécutant après les rAF mais avant le
+     rendu : sans cela, une image vide s'affiche. */
   /* les signes déjà écrits suivent l'agrandissement de la feuille */
   function transpose(oldW,oldH){
     if(!oldW||!oldH||(oldW===W&&oldH===H))return;
@@ -112,21 +111,33 @@
     for(const g of glyphs){g.x*=sx;g.y*=sy;}
     if(lastX>=0){lastX*=sx;lastY*=sy;}
   }
-  let textureT=0;
-  function resize(){
+  const ALLOC_MS=100;
+  let textureT=0,lastAlloc=0,allocT=0;
+  function alloc(){
+    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+    lastAlloc=performance.now();
+  }
+  function syncSize(){
     const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return false;
+    if(!r.width||!r.height)return;
     const oldW=W,oldH=H;
     W=r.width;H=r.height;
-    if(oldW===W&&oldH===H)return false;
+    if(oldW===W&&oldH===H)return;
     transpose(oldW,oldH);
-    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    if(!paper.width)buildPaper();              /* première fois : tout de suite */
+    /* le papyrus (~2900 traits) est de loin le plus cher : temporisation
+       propre, plus longue, et drawImage étire l'ancienne feuille entre-temps */
     clearTimeout(textureT);
-    textureT=setTimeout(()=>{buildPaper();dirty=true;render();},150);
+    textureT=setTimeout(()=>{buildPaper();render();},150);
+    const needW=Math.round(W*DPR),needH=Math.round(H*DPR);
+    if(canvas.width!==needW||canvas.height!==needH){
+      if(performance.now()-lastAlloc>ALLOC_MS){
+        alloc();render();                      /* le tampon vient d'être effacé */
+        return;
+      }
+      clearTimeout(allocT);
+      allocT=setTimeout(()=>{alloc();render();},ALLOC_MS+40);
+    }
     dirty=true;
-    return true;
   }
 
   /* ---- écriture hiéroglyphique ---- */
@@ -272,7 +283,7 @@
   }
 
   function render(){
-    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
     ctx.clearRect(0,0,W,H);
     ctx.drawImage(paper,0,0,W,H);
     const t=now();
@@ -291,10 +302,11 @@
 
   function loop(){if(dirty)render();requestAnimationFrame(loop);}
 
-  resize();
-  new ResizeObserver(()=>{
-    if(resize())render();                    /* pas d'image vide */
-  }).observe(panel);
+  (function init(){
+    const r=panel.getBoundingClientRect();
+    W=r.width||1;H=r.height||1;alloc();buildPaper();
+  })();
+  new ResizeObserver(syncSize).observe(panel);
 
   const pos=e=>{const r=panel.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];};
   panel.addEventListener('pointermove',e=>{const[x,y]=pos(e);onMove(x,y);});
