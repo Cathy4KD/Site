@@ -148,14 +148,22 @@ void main(){
   const uM=gl.getUniformLocation(prog,'uM');
   const uCur=gl.getUniformLocation(prog,'uCur');
 
-  function resize(){
+  /* Même raison que pour les autres matières : redimensionner le tampon WebGL
+     à chaque image du survol coûtait plus cher que de laisser le CSS étirer
+     l'ancien pendant les 0,85 s de la transition. */
+  function applyResize(){
     const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height)return;
     canvas.width=Math.round(r.width*DPR);
     canvas.height=Math.round(r.height*DPR);
     gl.viewport(0,0,canvas.width,canvas.height);
     gl.uniform2f(uRes,canvas.width,canvas.height);
   }
-  resize();new ResizeObserver(resize).observe(panel);
+  let resizeT=0;
+  applyResize();
+  new ResizeObserver(()=>{
+    clearTimeout(resizeT);resizeT=setTimeout(applyResize,150);
+  }).observe(panel);
 
   const M=new Float32Array(40);
   let mi=0,lastMx=-1,lastAdd=0,curX=-1,t0=performance.now();

@@ -125,7 +125,12 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 .label{position:absolute;z-index:20;left:20px;bottom:20px;color:#fff;
   text-shadow:0 2px 12px rgba(0,0,0,.5);pointer-events:none}
 .num{font:10.5px 'Spline Sans Mono',monospace;letter-spacing:.22em;opacity:.65}
-.name{margin-top:5px;font-family:'Syne',sans-serif;font-size:24px;font-weight:800;
+/* « COPEAUX » est le seul titre assez long pour toucher le bord de sa tuile :
+   à 24px il réclamait 202px pour 192px disponibles. La taille suit désormais
+   la largeur de la fenêtre — les quatre autres titres, qui ont 50 à 89px de
+   marge, ne bougent pratiquement pas. */
+.name{margin-top:5px;font-family:'Syne',sans-serif;
+  font-size:clamp(15px,1.7vw,24px);font-weight:800;
   letter-spacing:-.01em;line-height:1}
 .sub{margin-top:4px;font-size:9.5px;color:rgba(255,255,255,.72);
   letter-spacing:.08em;text-transform:uppercase;font-family:'Spline Sans Mono',monospace}

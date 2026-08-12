@@ -76,7 +76,6 @@
      les deux occupent le fil principal. On garde donc le redimensionnement
      immédiat et on diffère la texture : entre-temps drawImage l'étire, ce qui
      ne se voit pas sur un fond brossé. */
-  let rebuildT=0,textured=false;
   function resize(){
     const r=panel.getBoundingClientRect();W=r.width;H=r.height;
     if(!W||!H)return;
@@ -86,9 +85,8 @@
     trx.setTransform(DPR,0,0,DPR,0,0);trx.clearRect(0,0,W,H);
     path.length=0;
     Px=W*.5;Py=H*.45;
-    if(!textured){textured=true;buildMetal();if(reduce)drawStatic();return;}
-    clearTimeout(rebuildT);
-    rebuildT=setTimeout(()=>{buildMetal();if(reduce)drawStatic();},150);
+    buildMetal();
+    if(reduce)drawStatic();
   }
 
   const chips=[],sparks=[];
@@ -217,6 +215,10 @@
   panel.addEventListener('pointerenter',e=>{const[x,y]=pos(e);pmx=x;pmy=y;Px=x;Py=y;over=true;});
   panel.addEventListener('pointerleave',()=>{over=false;pmx=-1;pmy=-1;});
 
-  resize();new ResizeObserver(resize).observe(panel);
+  let resizeT=0;
+  resize();
+  new ResizeObserver(()=>{
+    clearTimeout(resizeT);resizeT=setTimeout(resize,150);
+  }).observe(panel);
   if(!reduce){last=performance.now();requestAnimationFrame(frame);}
 })();

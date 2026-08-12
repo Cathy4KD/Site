@@ -40,13 +40,24 @@
   let W=0,H=0,mx=-1,my=-1;
   let bx=-200,by=-200,heat=0;          /* sphère amortie + chauffe progressive */
 
-  function resize(){
+  /* Redimensionner un canvas réalloue son tampon graphique et l'efface. Au
+     survol, « flex » est animé sur 0,85 s et les cinq tuiles se partagent la
+     rangée : l'observateur tire à chaque image, sur chaque tuile. On rejouait
+     donc cette réallocation une cinquantaine de fois par survol et par canvas.
+     Tout est différé de 150 ms ; entre-temps le CSS étire l'ancien tampon, et
+     comme l'étirement est proportionnel le jet reste à sa place. */
+  function applyResize(){
     const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height)return;
     W=r.width;H=r.height;
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
   }
-  resize();new ResizeObserver(resize).observe(panel);
+  let resizeT=0;
+  applyResize();
+  new ResizeObserver(()=>{
+    clearTimeout(resizeT);resizeT=setTimeout(applyResize,150);
+  }).observe(panel);
 
   panel.addEventListener('pointermove',e=>{
     const r=panel.getBoundingClientRect();

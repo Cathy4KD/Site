@@ -104,17 +104,14 @@
      transition. Le canvas est redimensionné tout de suite, la feuille est
      différée ; entre-temps drawImage étire l'ancienne, ce qui ne se voit pas
      sur des fibres horizontales. */
-  let rebuildT=0,textured=false;
   function resize(){
     const r=panel.getBoundingClientRect();
     W=r.width;H=r.height;
     if(!W||!H)return;
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
+    buildPaper();
     dirty=true;
-    if(!textured){textured=true;buildPaper();return;}
-    clearTimeout(rebuildT);
-    rebuildT=setTimeout(()=>{buildPaper();dirty=true;},150);
   }
 
   /* ---- écriture hiéroglyphique ---- */
@@ -279,7 +276,11 @@
 
   function loop(){if(dirty)render();requestAnimationFrame(loop);}
 
-  resize();new ResizeObserver(resize).observe(panel);
+  let resizeT=0;
+  resize();
+  new ResizeObserver(()=>{
+    clearTimeout(resizeT);resizeT=setTimeout(resize,150);
+  }).observe(panel);
 
   const pos=e=>{const r=panel.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];};
   panel.addEventListener('pointermove',e=>{const[x,y]=pos(e);onMove(x,y);});
