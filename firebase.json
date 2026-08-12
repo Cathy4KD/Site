@@ -13,8 +13,9 @@
     "headers": [
       {
         "source": "**/*.@(css|js)",
+        "comment": "max-age=3600 servait du CSS périmé pendant une heure après chaque déploiement, y compris au moment de vérifier son propre travail. Firebase pose des ETags : avec must-revalidate le navigateur redemande à chaque fois et reçoit un 304 vide si rien n'a changé — coût négligeable, fraîcheur garantie.",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=3600" }
+          { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
         ]
       }
     ],

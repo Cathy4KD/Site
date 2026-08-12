@@ -81,7 +81,7 @@ header .role{margin-top:10px;font-family:'Spline Sans Mono',monospace;font-size:
 /* ================= PANEL (commun) ================= */
 .panel{position:relative;flex:1;min-width:0;overflow:hidden;border-radius:8px;
   isolation:isolate;cursor:pointer;user-select:none;border:none;padding:0;text-align:left;
-  contain:layout paint;
+  contain:layout paint;container-type:inline-size;
   box-shadow:var(--panel-shadow),inset 0 0 0 1px rgba(255,255,255,.06);
   transition:flex .85s cubic-bezier(.76,0,.2,1)}
 #stage .panel:hover,#stage .panel:focus-visible{flex:2.2}
@@ -125,14 +125,17 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 .label{position:absolute;z-index:20;left:20px;bottom:20px;color:#fff;
   text-shadow:0 2px 12px rgba(0,0,0,.5);pointer-events:none}
 .num{font:10.5px 'Spline Sans Mono',monospace;letter-spacing:.22em;opacity:.65}
-/* « COPEAUX » est le seul titre assez long pour toucher le bord de sa tuile :
-   à 24px il réclamait 202px pour 192px disponibles. La taille suit désormais
-   la largeur de la fenêtre — les quatre autres titres, qui ont 50 à 89px de
-   marge, ne bougent pratiquement pas. */
+/* Les libellés se mesurent sur LA TUILE, pas sur la fenêtre (unité cqw, d'où
+   le container-type posé sur .panel). C'est nécessaire parce qu'une tuile ne
+   garde jamais la même largeur : au repos elle fait 212px, mais dès qu'une
+   voisine s'ouvre elle tombe à ~155px, et « COPEAUX » comme « ACIÉRIE · ARRÊT
+   ANNUEL » s'y trouvaient tronqués. Vérifié de 850 à 1600px de large, tuile
+   ouverte comme rétrécie : la marge reste positive partout.
+   Effet secondaire heureux : le libellé de la tuile survolée grandit. */
 .name{margin-top:5px;font-family:'Syne',sans-serif;
-  font-size:clamp(15px,1.7vw,24px);font-weight:800;
+  font-size:clamp(9px,7.6cqw,24px);font-weight:800;
   letter-spacing:-.01em;line-height:1}
-.sub{margin-top:4px;font-size:9.5px;color:rgba(255,255,255,.72);
+.sub{margin-top:4px;font-size:clamp(6px,3.2cqw,9.5px);color:rgba(255,255,255,.72);
   letter-spacing:.08em;text-transform:uppercase;font-family:'Spline Sans Mono',monospace}
 
 /* survol : ce qu'elle y a fait */
