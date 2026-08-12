@@ -10,7 +10,6 @@
   const gl=canvas&&canvas.getContext('webgl',{antialias:false,alpha:false});
   if(!gl) return;                       /* pas de WebGL : fond CSS statique */
   gl.getExtension('OES_standard_derivatives');
-  const DPR=Math.min(2,window.devicePixelRatio||1);
 
   const VS=`attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`;
   const FS=`
@@ -148,58 +147,15 @@ void main(){
   const uM=gl.getUniformLocation(prog,'uM');
   const uCur=gl.getUniformLocation(prog,'uCur');
 
-  /* Le shader tire son rapport d'aspect de uRes : figer uRes pendant toute la
-     transition le faisait calculer sur l'ancienne forme, et la goutte se
-     remettait d'un coup à la fin — le saut. Le réaligner à chaque image coûtait
-     la fluidité. On le réaligne donc au plus une fois toutes les 100 ms :
-     l'erreur d'aspect reste alors sous les 10 %, imperceptible.
-     Redessin dans le même rappel, car le tampon fraîchement dimensionné est
-     vide et ResizeObserver s'exécute après les requestAnimationFrame. */
-  /* Budget de pixels par canvas. Mesuré : en plein écran un tampon à pleine
-     densité atteint 7 Mpx — huit fois la taille au repos — redessinés à chaque
-     image. Sur deux ouvertures et deux fermetures de chapitre, douze images
-     étaient perdues pour une seule tâche longue : le coût était donc dans le
-     rendu, pas dans le script. On plafonne, quitte à descendre sous la densité
-     de l écran — ces effets sont doux, la perte ne se voit pas. */
-  const MAXPX=2.4e6;
-  function scaleFor(w,h){
-    const d=Math.min(2,window.devicePixelRatio||1);
-    const px=w*h*d*d;
-    return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
-  }
-  /* Cible d allocation. Le battement de nettete venait d un tampon realloue
-     par paliers : il se figeait pendant que la tuile grandissait — l image
-     devenait floue — puis redevenait nette d un coup. Simulation : des sauts
-     de +13, +32 et +35 % d une image a l autre. Avec une cible STABLE, la
-     nettete varie de facon monotone et le battement disparait.
-     Pendant un zoom de chapitre la cible est connue : le plein ecran, donc une
-     seule allocation couvre toute la transition. Sinon on prend 1,8x la largeur
-     courante, ce qui couvre l elargissement au survol en une fois. Le tampon
-     est alors sur-echantillonne, ce qui ne se voit pas — contrairement au
-     sous-echantillonnage, qui floute. Un ajustement exact suit a l arret. */
-  function cible(exact){
-    if(exact) return [W(),H()];
-    if(panel.classList.contains("zooming")) return [innerWidth,innerHeight];
-    return [W()*1.8,H()];
-  }
-  const W=()=>panel.getBoundingClientRect().width||1;
-  const H=()=>panel.getBoundingClientRect().height||1;
-  let settleT=0;
-  function alloc(exact){
-    const [tw,th]=cible(exact),s=scaleFor(tw,th);
-    const w=Math.round(tw*s),h=Math.round(th*s);
-    if(w===canvas.width&&h===canvas.height)return false;
-    canvas.width=w;canvas.height=h;
-    gl.viewport(0,0,w,h);gl.uniform2f(uRes,w,h);
-    return true;
-  }
-  function syncSize(){
-    if(canvas.width<W()*scaleFor(W(),H())*0.99){ if(alloc(false))draw(); }
-    clearTimeout(settleT);
-    settleT=setTimeout(()=>{if(alloc(true))draw();},250);
-  }
-  alloc(true);
-  new ResizeObserver(syncSize).observe(panel);
+  /* uRes sert deux fois : il normalise gl_FragCoord ET donne le rapport
+     d aspect au shader. Le figer pendant une transition faisait calculer la
+     goutte sur l ancienne forme, puis elle se remettait d un coup. */
+  Matiere.sizing(panel,canvas,{
+    alloc:(bw,bh)=>{if(bw===canvas.width&&bh===canvas.height)return;
+                    canvas.width=bw;canvas.height=bh;
+                    gl.viewport(0,0,bw,bh);gl.uniform2f(uRes,bw,bh);},
+    redraw:()=>draw()
+  });
 
   const M=new Float32Array(40);
   let mi=0,lastMx=-1,lastAdd=0,curX=-1,t0=performance.now();

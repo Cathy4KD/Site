@@ -9,7 +9,6 @@
   const canvas=panel.querySelector('.fibre-mat');
   const ctx=canvas&&canvas.getContext('2d');
   if(!ctx) return;
-  const DPR=Math.min(2,window.devicePixelRatio||1);
   const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
   const R=(a,b)=>a+Math.random()*(b-a);
   const now=()=>performance.now()/1000;
@@ -19,23 +18,11 @@
   const paper=document.createElement('canvas');
   const pctx=paper.getContext('2d');
 
-  /* Générateur déterministe (mulberry32) réservé à la texture du papyrus.
-     Avec Math.random(), chaque reconstruction retirait des fibres et des
-     taches différentes : le papier changeait de motif sous les yeux à chaque
-     survol. Même graine = même feuille, quelle que soit la taille. */
-  function seeded(seed){
-    return function(){
-      seed=seed+0x6D2B79F5|0;
-      let t=Math.imul(seed^seed>>>15,1|seed);
-      t=t+Math.imul(t^t>>>7,61|t)^t;
-      return((t^t>>>14)>>>0)/4294967296;
-    };
-  }
 
   function buildPaper(){
     /* texture reproductible : voir le commentaire de seeded() */
-    const rnd=seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
-    const ps=scaleFor(W,H);
+    const rnd=Matiere.seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
+    const ps=Matiere.scaleFor(RW,RH);
     paper.width=Math.round(W*ps);paper.height=Math.round(H*ps);
     /* On dessine TOUJOURS dans un repère de référence fixe, que l on étire
        ensuite au format réel. Sans cela le nombre de fibres verticales et de
@@ -112,53 +99,18 @@
      la matrice absorbant l'écart résiduel (< 10 %, invisible). Redessin dans
      le même rappel, ResizeObserver s'exécutant après les rAF mais avant le
      rendu : sans cela, une image vide s'affiche. */
-  /* les signes déjà écrits suivent l'agrandissement de la feuille */
-  function transpose(oldW,oldH){
-    if(!oldW||!oldH||(oldW===W&&oldH===H))return;
-    const sx=W/oldW,sy=H/oldH;
+  /* les signes déjà écrits suivent l agrandissement de la feuille */
+  function transpose(sx,sy){
     for(const g of glyphs){g.x*=sx;g.y*=sy;}
     if(lastX>=0){lastX*=sx;lastY*=sy;}
   }
-  /* Budget de pixels par canvas. Mesuré : en plein écran un tampon à pleine
-     densité atteint 7 Mpx — huit fois la taille au repos — redessinés à chaque
-     image. Sur deux ouvertures et deux fermetures de chapitre, douze images
-     étaient perdues pour une seule tâche longue : le coût était donc dans le
-     rendu, pas dans le script. On plafonne, quitte à descendre sous la densité
-     de l écran — ces effets sont doux, la perte ne se voit pas. */
-  const MAXPX=2.4e6;
-  function scaleFor(w,h){
-    const d=Math.min(2,window.devicePixelRatio||1);
-    const px=w*h*d*d;
-    return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
-  }
-  /* Cible d allocation stable — voir acier.js. Un tampon realloue par paliers
-     se fige pendant que la tuile grandit (image floue) puis redevient net d un
-     coup : des sauts de nettete de +35 % d une image a l autre, mesures en
-     simulation. C est ce battement qu on voyait clignoter. */
-  function cible(exact){
-    if(exact) return [W,H];
-    if(panel.classList.contains("zooming")) return [innerWidth,innerHeight];
-    return [W*1.8,H];
-  }
-  let textureT=0,settleT=0,texW=0;
-  function alloc(exact){
-    const [tw,th]=cible(exact),s=scaleFor(tw,th);
-    canvas.width=Math.round(tw*s);canvas.height=Math.round(th*s);
-  }
-  function syncSize(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return;
-    const oldW=W,oldH=H;
-    W=r.width;H=r.height;
-    if(oldW===W&&oldH===H)return;
-    transpose(oldW,oldH);
+  let textureT=0,texW=0;
+  /* Le papyrus (~2900 traits) est de loin le plus cher : temporisation propre.
+     Au-delà de 2,5x d écart on le refait tout de suite. */
+  function texture(W){
     clearTimeout(textureT);
-    if(texW&&(W/texW>2.5||texW/W>2.5)){buildPaper();texW=W;}
-    else textureT=setTimeout(()=>{buildPaper();texW=W;render();},150);
-    if(canvas.width<W*scaleFor(W,H)*0.99)alloc(false);
-    clearTimeout(settleT);
-    settleT=setTimeout(()=>{alloc(true);render();},250);
-    dirty=true;render();
+    if(texW&&(W/texW>2.5||texW/W>2.5)){buildPaper();texW=W;return;}
+    textureT=setTimeout(()=>{buildPaper();texW=W;render();},150);
   }
 
   /* ---- écriture hiéroglyphique ---- */
@@ -323,11 +275,15 @@
 
   function loop(){if(dirty)render();requestAnimationFrame(loop);}
 
-  (function init(){
-    const r=panel.getBoundingClientRect();
-    W=r.width||1;H=r.height||1;alloc(true);buildPaper();texW=W;
-  })();
-  new ResizeObserver(syncSize).observe(panel);
+  Matiere.sizing(panel,canvas,{
+    setSize:(w,h)=>{W=w;H=h;},
+    transpose,
+    onSize:texture,
+    alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;
+                    if(!paper.width){buildPaper();texW=W;}},
+    remap:()=>{dirty=true;},
+    redraw:render
+  });
 
   const pos=e=>{const r=panel.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];};
   panel.addEventListener('pointermove',e=>{const[x,y]=pos(e);onMove(x,y);});

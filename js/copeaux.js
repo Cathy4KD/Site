@@ -10,7 +10,6 @@
   const canvas=panel.querySelector('.cop-sim');
   const ctx=canvas&&canvas.getContext('2d');
   if(!ctx) return;
-  const DPR=Math.min(2,window.devicePixelRatio||1);
   const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
   const R=(a,b)=>a+Math.random()*(b-a);
   let W=0,H=0,Px=0,Py=0;
@@ -38,21 +37,9 @@
       trx.stroke();
     }
   }
-  /* Générateur déterministe (mulberry32) réservé à la texture de fond.
-     Avec Math.random(), chaque reconstruction retirait un grain différent :
-     le métal changeait visiblement de brossage à chaque survol. Même graine
-     = même texture, quelle que soit la taille de la tuile. */
-  function seeded(seed){
-    return function(){
-      seed=seed+0x6D2B79F5|0;
-      let t=Math.imul(seed^seed>>>15,1|seed);
-      t=t+Math.imul(t^t>>>7,61|t)^t;
-      return((t^t>>>14)>>>0)/4294967296;
-    };
-  }
   function buildMetal(){
-    const rr=seeded(0x5EED1),RR=(a,b)=>a+rr()*(b-a);
-    const ms=scaleFor(W,H);
+    const rr=Matiere.seeded(0x5EED1),RR=(a,b)=>a+rr()*(b-a);
+    const ms=Matiere.scaleFor(RW,RH);
     mc.width=Math.round(W*ms);mc.height=Math.round(H*ms);
     /* repère de référence fixe, voir fibre.js : le compte de traits dépendait
        de la hauteur, qui change en plein écran, et le brossage se redessinait
@@ -81,63 +68,27 @@
      tampon, comme je l'avais fait ensuite, laissait l'image à l'ancienne
      résolution et au mauvais rapport d'aspect pendant toute la transition,
      puis tout se remettait d'un coup : flou, puis saut. */
-  function transpose(oldW,oldH){
-    /* On transpose l'état au lieu de le jeter : effacer la rainure et renvoyer
-       l'outil au centre coupait net le geste en cours. */
-    if(!oldW||!oldH||(oldW===W&&oldH===H))return;
-    const sx=W/oldW,sy=H/oldH;
+  /* On transpose l état au lieu de le jeter : effacer la rainure et renvoyer
+     l outil au centre coupait net le geste en cours. */
+  function transpose(sx,sy){
     for(const p of path){p.x*=sx;p.y*=sy;}
     for(const c of chips){c.x*=sx;c.y*=sy;}
     for(const s of sparks){s.x*=sx;s.y*=sy;}
     Px*=sx;Py*=sy;
   }
-  /* Budget de pixels par canvas. Mesuré : en plein écran un tampon à pleine
-     densité atteint 7 Mpx — huit fois la taille au repos — redessinés à chaque
-     image. Sur deux ouvertures et deux fermetures de chapitre, douze images
-     étaient perdues pour une seule tâche longue : le coût était donc dans le
-     rendu, pas dans le script. On plafonne, quitte à descendre sous la densité
-     de l écran — ces effets sont doux, la perte ne se voit pas. */
-  const MAXPX=2.4e6;
-  function scaleFor(w,h){
-    const d=Math.min(2,window.devicePixelRatio||1);
-    const px=w*h*d*d;
-    return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
+  let textureT=0,texW=0;
+  /* Le métal (~1500 traits) coûte un ordre de grandeur de plus qu une
+     réallocation : il garde sa propre temporisation. Au-delà de 2,5x d écart
+     on le refait tout de suite, sinon il resterait étiré six fois pendant
+     l ouverture d un chapitre. */
+  function texture(W){
+    clearTimeout(textureT);
+    if(texW&&(W/texW>2.5||texW/W>2.5)){buildMetal();texW=W;return;}
+    textureT=setTimeout(()=>{buildMetal();texW=W;if(reduce)drawStatic();},150);
   }
-  /* Cible d allocation stable — voir acier.js. Un tampon realloue par paliers
-     se fige pendant que la tuile grandit (image floue) puis redevient net d un
-     coup : des sauts de nettete de +35 % d une image a l autre, mesures en
-     simulation. C est ce battement qu on voyait clignoter. */
-  function cible(exact){
-    if(exact) return [W,H];
-    if(panel.classList.contains("zooming")) return [innerWidth,innerHeight];
-    return [W*1.8,H];
-  }
-  let textureT=0,settleT=0,texW=0;
-  function alloc(exact){
-    const [tw,th]=cible(exact),s=scaleFor(tw,th);
-    canvas.width=Math.round(tw*s);canvas.height=Math.round(th*s);
-    tr.width=canvas.width;tr.height=canvas.height;
+  function matrices(){
     ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
     trx.setTransform(tr.width/W,0,0,tr.height/H,0,0);
-  }
-  function syncSize(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return;
-    const oldW=W,oldH=H;
-    W=r.width;H=r.height;
-    if(oldW===W&&oldH===H)return;
-    transpose(oldW,oldH);
-    clearTimeout(textureT);
-    if(texW&&(W/texW>2.5||texW/W>2.5)){buildMetal();texW=W;}
-    else textureT=setTimeout(()=>{buildMetal();texW=W;if(reduce)drawStatic();},150);
-    if(canvas.width<W*scaleFor(W,H)*0.99){
-      alloc(false);if(!reduce)render(last);
-    }else{
-      ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
-      trx.setTransform(tr.width/W,0,0,tr.height/H,0,0);
-    }
-    clearTimeout(settleT);
-    settleT=setTimeout(()=>{alloc(true);if(!reduce)render(last);},250);
   }
 
   const chips=[],sparks=[];
@@ -268,11 +219,15 @@
   panel.addEventListener('pointerenter',e=>{const[x,y]=pos(e);pmx=x;pmy=y;Px=x;Py=y;over=true;});
   panel.addEventListener('pointerleave',()=>{over=false;pmx=-1;pmy=-1;});
 
-  (function init(){
-    const r=panel.getBoundingClientRect();
-    W=r.width||1;H=r.height||1;Px=W*.5;Py=H*.45;
-    alloc(true);buildMetal();texW=W;if(reduce)drawStatic();
-  })();
-  new ResizeObserver(syncSize).observe(panel);
+  Matiere.sizing(panel,canvas,{
+    setSize:(w,h)=>{if(!W){Px=w*.5;Py=h*.45;}W=w;H=h;},
+    transpose,
+    onSize:texture,
+    alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;
+                    tr.width=bw;tr.height=bh;matrices();
+                    if(!mc.width){buildMetal();texW=W;if(reduce)drawStatic();}},
+    remap:matrices,
+    redraw:()=>{if(!reduce)render(last);}
+  });
   if(!reduce){last=performance.now();requestAnimationFrame(frame);}
 })();

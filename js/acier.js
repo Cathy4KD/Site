@@ -35,7 +35,6 @@
   const ctx=canvas&&canvas.getContext('2d');
   if(!ctx) return;                      /* pas de canvas : coulée CSS statique */
   panel.classList.add('canvasjet');
-  const DPR=Math.min(2,window.devicePixelRatio||1);
   const STREAM=.56, R=15, CATCH=R+16, GRAV=2600;
   let W=0,H=0,mx=-1,my=-1;
   let bx=-200,by=-200,heat=0;          /* sphère amortie + chauffe progressive */
@@ -58,66 +57,19 @@
   /* Étincelles et tronçons en vol sont transposés vers la nouvelle taille :
      sinon ils sautaient d'un coup. Le garde « oldW » saute ce bloc au tout
      premier appel, où parts et branches ne sont pas encore déclarés. */
-  function transpose(oldW,oldH){
-    if(!oldW||!oldH||(oldW===W&&oldH===H))return;
-    const sx=W/oldW,sy=H/oldH;
+  function transpose(sx,sy){
     for(const p of parts){p.x*=sx;p.y*=sy;}
     branches.forEach(b=>{b.tipY*=sy;});
     for(const rm of remnants){rm.topY*=sy;rm.cx*=sx;rm.cy*=sy;}
   }
-  /* Budget de pixels par canvas. Mesuré : en plein écran un tampon à pleine
-     densité atteint 7 Mpx — huit fois la taille au repos — redessinés à chaque
-     image. Sur deux ouvertures et deux fermetures de chapitre, douze images
-     étaient perdues pour une seule tâche longue : le coût était donc dans le
-     rendu, pas dans le script. On plafonne, quitte à descendre sous la densité
-     de l écran — ces effets sont doux, la perte ne se voit pas. */
-  const MAXPX=2.4e6;
-  function scaleFor(w,h){
-    const d=Math.min(2,window.devicePixelRatio||1);
-    const px=w*h*d*d;
-    return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
-  }
-  /* Cible d allocation. Le battement de nettete venait d un tampon realloue
-     par paliers : il se figeait pendant que la tuile grandissait — l image
-     devenait floue — puis redevenait nette d un coup. Simulation : des sauts
-     de +13, +32 et +35 % d une image a l autre. Avec une cible STABLE, la
-     nettete varie de facon monotone et le battement disparait.
-     Pendant un zoom de chapitre la cible est connue : le plein ecran, donc une
-     seule allocation couvre toute la transition. Sinon on prend 1,8x la largeur
-     courante, ce qui couvre l elargissement au survol en une fois. Le tampon
-     est alors sur-echantillonne, ce qui ne se voit pas — contrairement au
-     sous-echantillonnage, qui floute. Un ajustement exact suit a l arret. */
-  function cible(exact){
-    if(exact) return [W,H];
-    if(panel.classList.contains("zooming")) return [innerWidth,innerHeight];
-    return [W*1.8,H];
-  }
-  let settleT=0;
-  function alloc(exact){
-    const [tw,th]=cible(exact),s=scaleFor(tw,th);
-    canvas.width=Math.round(tw*s);canvas.height=Math.round(th*s);
-    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
-  }
-  function syncSize(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return;
-    const oldW=W,oldH=H;
-    W=r.width;H=r.height;
-    if(oldW===W&&oldH===H)return;
-    transpose(oldW,oldH);
-    if(canvas.width<W*scaleFor(W,H)*0.99){   /* sous-echantillonne : on agrandit */
-      alloc(false);step(lastT);
-    }else{
-      ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
-    }
-    clearTimeout(settleT);                   /* taille exacte une fois immobile */
-    settleT=setTimeout(()=>{alloc(true);step(lastT);},250);
-  }
-  (function init(){
-    const r=panel.getBoundingClientRect();
-    W=r.width||1;H=r.height||1;alloc(true);
-  })();
-  new ResizeObserver(syncSize).observe(panel);
+  Matiere.sizing(panel,canvas,{
+    setSize:(w,h)=>{W=w;H=h;},
+    transpose,
+    alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;
+                    ctx.setTransform(bw/W,0,0,bh/H,0,0);},
+    remap:()=>ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0),
+    redraw:()=>step(lastT)
+  });
 
   panel.addEventListener('pointermove',e=>{
     const r=panel.getBoundingClientRect();
