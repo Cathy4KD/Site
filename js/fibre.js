@@ -37,17 +37,24 @@
     const rnd=seeded(0xFA9B1),RR=(a,b)=>a+rnd()*(b-a);
     const ps=scaleFor(W,H);
     paper.width=Math.round(W*ps);paper.height=Math.round(H*ps);
-    pctx.setTransform(ps,0,0,ps,0,0);
+    /* On dessine TOUJOURS dans un repère de référence fixe, que l on étire
+       ensuite au format réel. Sans cela le nombre de fibres verticales et de
+       taches dépendait de la largeur : les boucles consommaient un nombre
+       différent de tirages et tout le flux pseudo-aléatoire suivant divergeait.
+       Même graine, motif entièrement différent — le papyrus changeait de
+       tissage à chaque reconstruction. C était le flash à l ouverture. */
+    const RW=900,RH=1200;
+    pctx.setTransform(paper.width/RW,0,0,paper.height/RH,0,0);
     pctx.lineCap='round';
     pctx.lineJoin='round';
     /* fond papyrus : beige chaud */
-    const g=pctx.createLinearGradient(0,0,W*.15,H);
+    const g=pctx.createLinearGradient(0,0,RW*.15,RH);
     g.addColorStop(0,'#ecdcb0');g.addColorStop(.5,'#ddc890');g.addColorStop(1,'#ccb075');
-    pctx.fillStyle=g;pctx.fillRect(0,0,W,H);
+    pctx.fillStyle=g;pctx.fillRect(0,0,RW,RH);
 
     /* grandes plages de tons : casse l'uniformité (pas de grille) */
     for(let i=0;i<7;i++){
-      const x=RR(0,W),y=RR(0,H),rr=RR(H*.2,H*.55);
+      const x=RR(0,RW),y=RR(0,RH),rr=RR(RH*.2,RH*.55);
       const m=pctx.createRadialGradient(x,y,0,x,y,rr);
       m.addColorStop(0,rnd()<.5?'rgba(255,246,214,.12)':'rgba(150,120,66,.10)');
       m.addColorStop(1,'rgba(0,0,0,0)');
@@ -55,48 +62,48 @@
     }
 
     /* grain principal : longues fibres horizontales ondulées (dominante) */
-    const nH=Math.round(H*1.1);
+    const nH=Math.round(RH*1.1);
     for(let i=0;i<nH;i++){
-      const y=RR(-4,H+4);
+      const y=RR(-4,RH+4);
       pctx.strokeStyle=(rnd()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+RR(.03,.11).toFixed(3)+')';
       pctx.lineWidth=RR(.6,1.7);
       const amp=RR(.4,1.8),ph=RR(0,6.2832),fq=RR(.01,.03);
       pctx.beginPath();
-      for(let x=0;x<=W;x+=W/8){const yy=y+Math.sin(x*fq+ph)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
+      for(let x=0;x<=RW;x+=RW/8){const yy=y+Math.sin(x*fq+ph)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
       pctx.stroke();
     }
     /* sous-couche verticale : grain beaucoup plus faible = fibres croisées discrètes */
-    const nV=Math.round(W*.5);
+    const nV=Math.round(RW*.5);
     for(let i=0;i<nV;i++){
-      const x=RR(-4,W+4);
+      const x=RR(-4,RW+4);
       pctx.strokeStyle=(rnd()<.5?'rgba(255,247,218,':'rgba(116,90,46,')+RR(.02,.06).toFixed(3)+')';
       pctx.lineWidth=RR(.6,1.4);
       const amp=RR(.4,1.6),ph=RR(0,6.2832),fq=RR(.01,.03);
       pctx.beginPath();
-      for(let y=0;y<=H;y+=H/8){const xx=x+Math.sin(y*fq+ph)*amp;y?pctx.lineTo(xx,y):pctx.moveTo(xx,y);}
+      for(let y=0;y<=RH;y+=RH/8){const xx=x+Math.sin(y*fq+ph)*amp;y?pctx.lineTo(xx,y):pctx.moveTo(xx,y);}
       pctx.stroke();
     }
     /* jointures de lamelles : lignes horizontales douces, espacées au hasard */
-    for(let y=RR(20,60);y<H;y+=RR(30,72)){
+    for(let y=RR(20,60);y<RH;y+=RR(30,72)){
       pctx.strokeStyle='rgba(96,72,36,'+RR(.05,.12).toFixed(3)+')';pctx.lineWidth=RR(.8,1.6);
       const amp=RR(.6,2),ph=RR(0,6.2832),fq=RR(.008,.02);
       pctx.beginPath();
-      for(let x=0;x<=W;x+=W/8){const yy=y+Math.sin(x*fq+ph)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
+      for(let x=0;x<=RW;x+=RW/8){const yy=y+Math.sin(x*fq+ph)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
       pctx.stroke();
     }
     /* taches d'âge */
-    const M=Math.round(W*H/2600);
+    const M=Math.round(RW*RH/2600);
     for(let i=0;i<M;i++){
-      const x=RR(0,W),y=RR(0,H),rr=RR(6,26);
+      const x=RR(0,RW),y=RR(0,RH),rr=RR(6,26);
       const m=pctx.createRadialGradient(x,y,0,x,y,rr);
       m.addColorStop(0,'rgba(120,84,40,'+RR(.03,.08).toFixed(3)+')');
       m.addColorStop(1,'rgba(120,84,40,0)');
       pctx.fillStyle=m;pctx.beginPath();pctx.arc(x,y,rr,0,6.2832);pctx.fill();
     }
     /* bords vieillis */
-    const vg=pctx.createRadialGradient(W*.5,H*.5,H*.3,W*.5,H*.5,H*.82);
+    const vg=pctx.createRadialGradient(RW*.5,RH*.5,RH*.3,RW*.5,RH*.5,RH*.82);
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(70,46,18,.28)');
-    pctx.fillStyle=vg;pctx.fillRect(0,0,W,H);
+    pctx.fillStyle=vg;pctx.fillRect(0,0,RW,RH);
   }
 
   /* Affecter canvas.width réalloue le tampon ET l'efface. Le refaire à

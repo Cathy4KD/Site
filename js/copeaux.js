@@ -54,21 +54,25 @@
     const rr=seeded(0x5EED1),RR=(a,b)=>a+rr()*(b-a);
     const ms=scaleFor(W,H);
     mc.width=Math.round(W*ms);mc.height=Math.round(H*ms);
-    mx.setTransform(ms,0,0,ms,0,0);
-    const g=mx.createLinearGradient(0,0,W*.3,H);
+    /* repère de référence fixe, voir fibre.js : le compte de traits dépendait
+       de la hauteur, qui change en plein écran, et le brossage se redessinait
+       différemment */
+    const RW=900,RH=1200;
+    mx.setTransform(mc.width/RW,0,0,mc.height/RH,0,0);
+    const g=mx.createLinearGradient(0,0,RW*.3,RH);
     g.addColorStop(0,'#2c3a4a');g.addColorStop(.4,'#20303f');
     g.addColorStop(.72,'#182430');g.addColorStop(1,'#0d141c');
-    mx.fillStyle=g;mx.fillRect(0,0,W,H);
-    for(let i=0;i<H*1.4;i++){const y=RR(0,H);
+    mx.fillStyle=g;mx.fillRect(0,0,RW,RH);
+    for(let i=0;i<RH*1.4;i++){const y=RR(0,RH);
       mx.strokeStyle=(rr()<.5?'rgba(190,215,240,':'rgba(8,14,22,')+RR(.02,.07).toFixed(3)+')';
       mx.lineWidth=RR(.5,1.3);
-      mx.beginPath();mx.moveTo(0,y);mx.lineTo(W,y+RR(-1,1));mx.stroke();}
-    const rg=mx.createRadialGradient(W*.4,H*.3,4,W*.4,H*.3,W*1.1);
+      mx.beginPath();mx.moveTo(0,y);mx.lineTo(RW,y+RR(-1,1));mx.stroke();}
+    const rg=mx.createRadialGradient(RW*.4,RH*.3,4,RW*.4,RH*.3,RW*1.1);
     rg.addColorStop(0,'rgba(168,196,224,.12)');rg.addColorStop(1,'rgba(168,196,224,0)');
-    mx.fillStyle=rg;mx.fillRect(0,0,W,H);
-    const vg=mx.createRadialGradient(W*.5,H*.5,H*.3,W*.5,H*.5,H*.82);
+    mx.fillStyle=rg;mx.fillRect(0,0,RW,RH);
+    const vg=mx.createRadialGradient(RW*.5,RH*.5,RH*.3,RW*.5,RH*.5,RH*.82);
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.42)');
-    mx.fillStyle=vg;mx.fillRect(0,0,W,H);
+    mx.fillStyle=vg;mx.fillRect(0,0,RW,RH);
   }
   /* Le survol anime « flex » sur 0,85 s : la largeur change à chaque image et
      ResizeObserver tire une cinquantaine de fois d'affilée, sur les cinq tuiles
