@@ -1,0 +1,147 @@
+(function(){
+  /* zoom panneau → chapitre (FLIP) */
+  let openPanel=null,spacer=null;
+  function openChapter(panel){
+    if(openPanel)return;
+    openPanel=panel;
+    const r=panel.getBoundingClientRect();
+    /* clone visible : la tuile reste dans la rangée pendant le plein écran.
+       Il naît à la largeur exacte de la tuile survolée (aucun rééquilibrage
+       visible), puis se détend une fois masqué par le plein écran. */
+    spacer=panel.cloneNode(true);
+    spacer.classList.add('spacer');
+    /* le clone n'a pas de canvas vivant : on lui rend le décor CSS de secours */
+    spacer.classList.remove('canvasjet');
+    spacer.setAttribute('aria-hidden','true');
+    spacer.disabled=true;
+    spacer.style.flex=getComputedStyle(panel).flex;
+    panel.parentNode.insertBefore(spacer,panel);
+    setTimeout(()=>{if(spacer)spacer.style.flex=''},1000);
+    panel.style.top=r.top+'px';panel.style.left=r.left+'px';
+    panel.style.width=r.width+'px';panel.style.height=r.height+'px';
+    panel.classList.add('zooming');
+    panel.getBoundingClientRect(); // reflow
+    panel.classList.add('open');
+    document.body.classList.add('chapter-open');
+    setTint(panel.dataset.chapter);
+    document.body.style.overflow='hidden';
+  }
+  function closeChapter(){
+    if(!openPanel)return;
+    const panel=openPanel;
+    const r=spacer.getBoundingClientRect();
+    panel.classList.remove('open');
+    panel.style.top=r.top+'px';panel.style.left=r.left+'px';
+    panel.style.width=r.width+'px';panel.style.height=r.height+'px';
+    let settled=false;
+    function settle(){
+      if(settled)return;settled=true;
+      /* la tuile D'ORIGINE reprend sa place, et c'est le clone qui disparaît.
+         Un clone n'est qu'une copie inerte du DOM : ses <canvas> sont vides et
+         aucune simulation n'y est branchée. Le promouvoir en tuile éteindrait
+         définitivement la matière. La géométrie étant identique à celle du
+         clone, la bascule ne produit aucun saut visible.
+         (un clone ne copie que le DOM, jamais le bitmap d'un canvas) */
+      spacer.remove();
+      panel.classList.remove('zooming');
+      panel.style.top=panel.style.left=panel.style.width=panel.style.height='';
+      spacer=null;openPanel=null;
+      document.body.classList.remove('chapter-open');
+      setTint(null);
+    }
+    panel.addEventListener('transitionend',function done(e){
+      if(e.propertyName!=='width')return;
+      panel.removeEventListener('transitionend',done);
+      settle();
+    });
+    setTimeout(settle,1000); /* filet : jamais coincé en mode fixe */
+  }
+  /* délégation : clics et survols valent pour toute tuile, clones compris */
+  const row=document.getElementById('row');
+  /* ouverture sur pointerdown : insensible au déplacement de la tuile
+     sous le curseur pendant son expansion de survol */
+  row.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    const p=e.target.closest('.panel');
+    if(!p||p.classList.contains('spacer')||p.classList.contains('open'))return;
+    openChapter(p);
+  });
+  row.addEventListener('click',e=>{
+    const p=e.target.closest('.panel');
+    if(!p)return;
+    if(p.classList.contains('open')){
+      if(e.target.closest('.back'))closeChapter();
+      return;
+    }
+    /* filet : clavier et environnements sans PointerEvents */
+    if(!p.classList.contains('spacer'))openChapter(p);
+  });
+  let tintOut=null,tintIn=null;
+  row.addEventListener('mouseover',e=>{
+    const p=e.target.closest('.panel');
+    if(!p||openPanel)return;
+    if(p.contains(e.relatedTarget))return;
+    clearTimeout(tintOut);clearTimeout(tintIn);
+    tintIn=setTimeout(()=>setTint(p.dataset.chapter),90);
+  });
+  row.addEventListener('mouseout',e=>{
+    const p=e.target.closest('.panel');
+    if(!p||openPanel)return;
+    if(p.contains(e.relatedTarget))return;
+    clearTimeout(tintIn);clearTimeout(tintOut);
+    tintOut=setTimeout(()=>setTint(null),300);
+  });
+
+  /* ===== halo de matière : crossfade fluide entre deux calques ===== */
+  const TINTS={
+    eau:'radial-gradient(ellipse at 50% 40%,rgba(31,122,114,.16),rgba(8,80,90,.07) 55%,transparent 80%)',
+    copeaux:'radial-gradient(ellipse at 50% 40%,rgba(62,106,149,.15),rgba(32,48,63,.08) 55%,transparent 80%)',
+    fibre:'radial-gradient(ellipse at 50% 40%,rgba(176,143,68,.17),rgba(125,101,56,.08) 55%,transparent 80%)',
+    lait:'radial-gradient(ellipse at 50% 40%,rgba(255,252,240,.55),rgba(226,215,190,.2) 55%,transparent 80%)',
+    acier:'radial-gradient(ellipse at 50% 40%,rgba(212,85,26,.15),rgba(120,40,10,.08) 55%,transparent 80%)'
+  };
+  const TINTS_DARK={...TINTS,
+    lait:'radial-gradient(ellipse at 50% 40%,rgba(240,232,210,.10),rgba(226,215,190,.04) 55%,transparent 80%)'
+  };
+  const layers=[document.getElementById('tintA'),document.getElementById('tintB')];
+  let front=0,currentTint=null;
+  function setTint(name){
+    if(name===currentTint)return;
+    currentTint=name;
+    if(!name){layers.forEach(l=>l.classList.remove('on'));return}
+    const dark=document.documentElement.getAttribute('data-theme')==='dark';
+    const back=1-front;
+    layers[back].style.background=(dark?TINTS_DARK:TINTS)[name];
+    layers[back].classList.add('on');
+    layers[front].classList.remove('on');
+    front=back;
+  }
+  addEventListener('keydown',e=>{if(e.key==='Escape')closeChapter()});
+
+  /* ===== thème clair / sombre — balayage circulaire depuis le bouton ===== */
+  const KEY='cf-theme';
+  const root=document.documentElement;
+  const saved=localStorage.getItem(KEY);
+  if(saved)root.setAttribute('data-theme',saved);
+  const btn=document.querySelector('.theme-btn');
+  btn.addEventListener('click',()=>{
+    const next=root.getAttribute('data-theme')==='dark'?'light':'dark';
+    const apply=()=>{
+      if(next==='dark')root.setAttribute('data-theme','dark');
+      else root.removeAttribute('data-theme');
+      localStorage.setItem(KEY,next);
+    };
+    if(!document.startViewTransition||
+       matchMedia('(prefers-reduced-motion:reduce)').matches){apply();return}
+    const r=btn.getBoundingClientRect();
+    const x=r.left+r.width/2,y=r.top+r.height/2;
+    const rad=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+    root.style.setProperty('--theme-x',x+'px');
+    root.style.setProperty('--theme-y',y+'px');
+    root.style.setProperty('--theme-r',rad+'px');
+    /* aller : le sombre s'étend — retour : il se rétracte */
+    if(next==='light')root.setAttribute('data-wipe','retract');
+    const vt=document.startViewTransition(apply);
+    vt.finished.finally(()=>root.removeAttribute('data-wipe'));
+  });
+})();
