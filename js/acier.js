@@ -83,11 +83,11 @@
     if(canvas.width!==needW||canvas.height!==needH){
       if(performance.now()-lastAlloc>ALLOC_MS){
         alloc();
-        step(performance.now());        /* le tampon vient d'être effacé */
+        step(lastT);                    /* redessin seul : dt nul, horloge intacte */
         return;
       }
       clearTimeout(allocT);             /* réalignement final, taille exacte */
-      allocT=setTimeout(()=>{alloc();step(performance.now());},ALLOC_MS+40);
+      allocT=setTimeout(()=>{alloc();step(lastT);},ALLOC_MS+40);
     }
     /* écart résiduel (< 10 %) absorbé par la matrice : géométrie toujours juste */
     ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
@@ -257,7 +257,10 @@
   const t0=lastT;
 
   function step(now){
-    const t=(now-t0)/1000,dt=Math.min(.05,(now-lastT)/1000);lastT=now;
+    /* dt borné à zéro par le bas : un redessin déclenché hors rAF passe un
+       horodatage postérieur à celui de l'image suivante, ce qui rendait dt
+       négatif — particules à reculons et phase du bruit qui saute. */
+    const t=(now-t0)/1000,dt=Math.max(0,Math.min(.05,(now-lastT)/1000));lastT=now;
     if(!W)return;
     ctx.clearRect(0,0,W,H);
     const sx=W*STREAM;

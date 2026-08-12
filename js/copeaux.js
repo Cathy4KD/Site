@@ -111,11 +111,11 @@
     if(canvas.width!==needW||canvas.height!==needH){
       if(performance.now()-lastAlloc>ALLOC_MS){
         alloc();
-        if(!reduce)render(performance.now());   /* le tampon vient d'être effacé */
+        if(!reduce)render(last);                  /* redessin seul : dt nul */
         return;
       }
       clearTimeout(allocT);
-      allocT=setTimeout(()=>{alloc();if(!reduce)render(performance.now());},ALLOC_MS+40);
+      allocT=setTimeout(()=>{alloc();if(!reduce)render(last);},ALLOC_MS+40);
     }
     ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
     trx.setTransform(tr.width/W,0,0,tr.height/H,0,0);
@@ -196,7 +196,9 @@
 
   let last=0,accC=0,accS=0,cut=0,over=false;
   function render(now){
-    const dt=Math.min(.05,(now-last)/1000);last=now;
+    /* voir acier.js : dt borné à zéro, sinon un redessin hors rAF le rend
+       négatif et les copeaux repartent à l'envers */
+    const dt=Math.max(0,Math.min(.05,(now-last)/1000));last=now;
     cut=Math.max(0,cut-dt*2.6);                 /* la coupe retombe quand on arrête */
     if(over&&cut>.02){
       accC+=dt*cut*24;while(accC>=1){accC--;spawnChip();}

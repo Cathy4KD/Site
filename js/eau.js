@@ -69,6 +69,9 @@
       curr=nc;prev=np;
       bg=makeBackground(w,h,cfg);
       img=ctx.createImageData(w,h);
+      /* canvas.width vient d'effacer le canvas, et la boucle ne rend que
+         70 % des images : sans ce rendu immédiat, une image vide passe. */
+      render();
     }
     /* Le seuil ci-dessus fait que le survol ne reconstruit rien du tout ;
        la temporisation ne sert plus qu'aux changements d'échelle réels
