@@ -167,29 +167,38 @@ void main(){
     const px=w*h*d*d;
     return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
   }
-  const ALLOC_MS=100;
-  let lastAlloc=0,allocT=0;
-  function alloc(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return false;
-    const s=scaleFor(r.width,r.height);
-    const w=Math.round(r.width*s),h=Math.round(r.height*s);
+  /* Cible d allocation. Le battement de nettete venait d un tampon realloue
+     par paliers : il se figeait pendant que la tuile grandissait — l image
+     devenait floue — puis redevenait nette d un coup. Simulation : des sauts
+     de +13, +32 et +35 % d une image a l autre. Avec une cible STABLE, la
+     nettete varie de facon monotone et le battement disparait.
+     Pendant un zoom de chapitre la cible est connue : le plein ecran, donc une
+     seule allocation couvre toute la transition. Sinon on prend 1,8x la largeur
+     courante, ce qui couvre l elargissement au survol en une fois. Le tampon
+     est alors sur-echantillonne, ce qui ne se voit pas — contrairement au
+     sous-echantillonnage, qui floute. Un ajustement exact suit a l arret. */
+  function cible(exact){
+    if(exact) return [W(),H()];
+    if(panel.classList.contains("zooming")) return [innerWidth,innerHeight];
+    return [W()*1.8,H()];
+  }
+  const W=()=>panel.getBoundingClientRect().width||1;
+  const H=()=>panel.getBoundingClientRect().height||1;
+  let settleT=0;
+  function alloc(exact){
+    const [tw,th]=cible(exact),s=scaleFor(tw,th);
+    const w=Math.round(tw*s),h=Math.round(th*s);
     if(w===canvas.width&&h===canvas.height)return false;
     canvas.width=w;canvas.height=h;
-    gl.viewport(0,0,w,h);
-    gl.uniform2f(uRes,w,h);          /* uRes normalise p ET donne le rapport d'aspect */
-    lastAlloc=performance.now();
+    gl.viewport(0,0,w,h);gl.uniform2f(uRes,w,h);
     return true;
   }
   function syncSize(){
-    if(performance.now()-lastAlloc>ALLOC_MS){
-      if(alloc())draw();             /* le tampon vient d'être effacé */
-      return;
-    }
-    clearTimeout(allocT);
-    allocT=setTimeout(()=>{if(alloc())draw();},ALLOC_MS+40);
+    if(canvas.width<W()*scaleFor(W(),H())*0.99){ if(alloc(false))draw(); }
+    clearTimeout(settleT);
+    settleT=setTimeout(()=>{if(alloc(true))draw();},250);
   }
-  alloc();
+  alloc(true);
   new ResizeObserver(syncSize).observe(panel);
 
   const M=new Float32Array(40);

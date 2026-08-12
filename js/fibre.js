@@ -131,15 +131,19 @@
     const px=w*h*d*d;
     return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
   }
-  const ALLOC_MS=100;
-  /* voir copeaux.js : au-delà de 1,5x d'écart la feuille est refaite tout de
-     suite, sinon elle resterait étirée six fois pendant l'ouverture d'un
-     chapitre avant de redevenir nette d'un coup. */
-  let textureT=0,lastAlloc=0,allocT=0,texW=0;
-  function alloc(){
-    const s=scaleFor(W,H);
-    canvas.width=Math.round(W*s);canvas.height=Math.round(H*s);
-    lastAlloc=performance.now();
+  /* Cible d allocation stable — voir acier.js. Un tampon realloue par paliers
+     se fige pendant que la tuile grandit (image floue) puis redevient net d un
+     coup : des sauts de nettete de +35 % d une image a l autre, mesures en
+     simulation. C est ce battement qu on voyait clignoter. */
+  function cible(exact){
+    if(exact) return [W,H];
+    if(panel.classList.contains("zooming")) return [innerWidth,innerHeight];
+    return [W*1.8,H];
+  }
+  let textureT=0,settleT=0,texW=0;
+  function alloc(exact){
+    const [tw,th]=cible(exact),s=scaleFor(tw,th);
+    canvas.width=Math.round(tw*s);canvas.height=Math.round(th*s);
   }
   function syncSize(){
     const r=panel.getBoundingClientRect();
@@ -148,22 +152,13 @@
     W=r.width;H=r.height;
     if(oldW===W&&oldH===H)return;
     transpose(oldW,oldH);
-    /* le papyrus (~2900 traits) est de loin le plus cher : temporisation
-       propre, plus longue, et drawImage étire l'ancienne feuille entre-temps */
     clearTimeout(textureT);
     if(texW&&(W/texW>2.5||texW/W>2.5)){buildPaper();texW=W;}
     else textureT=setTimeout(()=>{buildPaper();texW=W;render();},150);
-    const ns=scaleFor(W,H);                 /* même échelle que alloc(), sinon le test ne coïncide jamais */
-    const needW=Math.round(W*ns),needH=Math.round(H*ns);
-    if(canvas.width!==needW||canvas.height!==needH){
-      if(performance.now()-lastAlloc>ALLOC_MS){
-        alloc();render();                      /* le tampon vient d'être effacé */
-        return;
-      }
-      clearTimeout(allocT);
-      allocT=setTimeout(()=>{alloc();render();},ALLOC_MS+40);
-    }
-    dirty=true;
+    if(canvas.width<W*scaleFor(W,H)*0.99)alloc(false);
+    clearTimeout(settleT);
+    settleT=setTimeout(()=>{alloc(true);render();},250);
+    dirty=true;render();
   }
 
   /* ---- écriture hiéroglyphique ---- */
@@ -330,7 +325,7 @@
 
   (function init(){
     const r=panel.getBoundingClientRect();
-    W=r.width||1;H=r.height||1;alloc();buildPaper();texW=W;
+    W=r.width||1;H=r.height||1;alloc(true);buildPaper();texW=W;
   })();
   new ResizeObserver(syncSize).observe(panel);
 

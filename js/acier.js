@@ -77,13 +77,26 @@
     const px=w*h*d*d;
     return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
   }
-  const ALLOC_MS=100;
-  let lastAlloc=0,allocT=0;
-  function alloc(){
-    const s=scaleFor(W,H);
-    canvas.width=Math.round(W*s);canvas.height=Math.round(H*s);
-    ctx.setTransform(s,0,0,s,0,0);
-    lastAlloc=performance.now();
+  /* Cible d allocation. Le battement de nettete venait d un tampon realloue
+     par paliers : il se figeait pendant que la tuile grandissait — l image
+     devenait floue — puis redevenait nette d un coup. Simulation : des sauts
+     de +13, +32 et +35 % d une image a l autre. Avec une cible STABLE, la
+     nettete varie de facon monotone et le battement disparait.
+     Pendant un zoom de chapitre la cible est connue : le plein ecran, donc une
+     seule allocation couvre toute la transition. Sinon on prend 1,8x la largeur
+     courante, ce qui couvre l elargissement au survol en une fois. Le tampon
+     est alors sur-echantillonne, ce qui ne se voit pas — contrairement au
+     sous-echantillonnage, qui floute. Un ajustement exact suit a l arret. */
+  function cible(exact){
+    if(exact) return [W,H];
+    if(panel.classList.contains("zooming")) return [innerWidth,innerHeight];
+    return [W*1.8,H];
+  }
+  let settleT=0;
+  function alloc(exact){
+    const [tw,th]=cible(exact),s=scaleFor(tw,th);
+    canvas.width=Math.round(tw*s);canvas.height=Math.round(th*s);
+    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
   }
   function syncSize(){
     const r=panel.getBoundingClientRect();
@@ -92,23 +105,17 @@
     W=r.width;H=r.height;
     if(oldW===W&&oldH===H)return;
     transpose(oldW,oldH);
-    const ns=scaleFor(W,H);                 /* même échelle que alloc(), sinon le test ne coïncide jamais */
-    const needW=Math.round(W*ns),needH=Math.round(H*ns);
-    if(canvas.width!==needW||canvas.height!==needH){
-      if(performance.now()-lastAlloc>ALLOC_MS){
-        alloc();
-        step(lastT);                    /* redessin seul : dt nul, horloge intacte */
-        return;
-      }
-      clearTimeout(allocT);             /* réalignement final, taille exacte */
-      allocT=setTimeout(()=>{alloc();step(lastT);},ALLOC_MS+40);
+    if(canvas.width<W*scaleFor(W,H)*0.99){   /* sous-echantillonne : on agrandit */
+      alloc(false);step(lastT);
+    }else{
+      ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
     }
-    /* écart résiduel (< 10 %) absorbé par la matrice : géométrie toujours juste */
-    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+    clearTimeout(settleT);                   /* taille exacte une fois immobile */
+    settleT=setTimeout(()=>{alloc(true);step(lastT);},250);
   }
   (function init(){
     const r=panel.getBoundingClientRect();
-    W=r.width||1;H=r.height||1;alloc();
+    W=r.width||1;H=r.height||1;alloc(true);
   })();
   new ResizeObserver(syncSize).observe(panel);
 

@@ -103,21 +103,22 @@
     const px=w*h*d*d;
     return px>MAXPX?d*Math.sqrt(MAXPX/px):d;
   }
-  const ALLOC_MS=100;
-  /* texW : largeur à laquelle la texture a été bâtie. Tant que l'écart reste
-     modéré, drawImage l'étire et la reconstruction attend la stabilisation.
-     Mais à l'ouverture d'un chapitre la tuile grandit d'un facteur six : la
-     texture restait étirée d'autant pendant toute la transition, puis
-     redevenait nette d'un coup. On la refait donc dès que l'écart dépasse
-     1,5x, ce qui borne le flou à un niveau imperceptible. */
-  let textureT=0,lastAlloc=0,allocT=0,texW=0;
-  function alloc(){
-    const s=scaleFor(W,H);
-    canvas.width=Math.round(W*s);canvas.height=Math.round(H*s);
-    ctx.setTransform(s,0,0,s,0,0);
-    tr.width=Math.round(W*s);tr.height=Math.round(H*s);
-    trx.setTransform(s,0,0,s,0,0);
-    lastAlloc=performance.now();
+  /* Cible d allocation stable — voir acier.js. Un tampon realloue par paliers
+     se fige pendant que la tuile grandit (image floue) puis redevient net d un
+     coup : des sauts de nettete de +35 % d une image a l autre, mesures en
+     simulation. C est ce battement qu on voyait clignoter. */
+  function cible(exact){
+    if(exact) return [W,H];
+    if(panel.classList.contains("zooming")) return [innerWidth,innerHeight];
+    return [W*1.8,H];
+  }
+  let textureT=0,settleT=0,texW=0;
+  function alloc(exact){
+    const [tw,th]=cible(exact),s=scaleFor(tw,th);
+    canvas.width=Math.round(tw*s);canvas.height=Math.round(th*s);
+    tr.width=canvas.width;tr.height=canvas.height;
+    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+    trx.setTransform(tr.width/W,0,0,tr.height/H,0,0);
   }
   function syncSize(){
     const r=panel.getBoundingClientRect();
@@ -126,25 +127,17 @@
     W=r.width;H=r.height;
     if(oldW===W&&oldH===H)return;
     transpose(oldW,oldH);
-    if(!oldW||!oldH){Px=W*.5;Py=H*.45;}
-    /* le métal (~1500 traits) est bien plus cher que le tampon : il garde sa
-       propre temporisation, plus longue, et drawImage l'étire entre-temps */
     clearTimeout(textureT);
     if(texW&&(W/texW>2.5||texW/W>2.5)){buildMetal();texW=W;}
     else textureT=setTimeout(()=>{buildMetal();texW=W;if(reduce)drawStatic();},150);
-    const ns=scaleFor(W,H);                 /* même échelle que alloc(), sinon le test ne coïncide jamais */
-    const needW=Math.round(W*ns),needH=Math.round(H*ns);
-    if(canvas.width!==needW||canvas.height!==needH){
-      if(performance.now()-lastAlloc>ALLOC_MS){
-        alloc();
-        if(!reduce)render(last);                  /* redessin seul : dt nul */
-        return;
-      }
-      clearTimeout(allocT);
-      allocT=setTimeout(()=>{alloc();if(!reduce)render(last);},ALLOC_MS+40);
+    if(canvas.width<W*scaleFor(W,H)*0.99){
+      alloc(false);if(!reduce)render(last);
+    }else{
+      ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+      trx.setTransform(tr.width/W,0,0,tr.height/H,0,0);
     }
-    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
-    trx.setTransform(tr.width/W,0,0,tr.height/H,0,0);
+    clearTimeout(settleT);
+    settleT=setTimeout(()=>{alloc(true);if(!reduce)render(last);},250);
   }
 
   const chips=[],sparks=[];
@@ -278,7 +271,7 @@
   (function init(){
     const r=panel.getBoundingClientRect();
     W=r.width||1;H=r.height||1;Px=W*.5;Py=H*.45;
-    alloc();buildMetal();texW=W;if(reduce)drawStatic();
+    alloc(true);buildMetal();texW=W;if(reduce)drawStatic();
   })();
   new ResizeObserver(syncSize).observe(panel);
   if(!reduce){last=performance.now();requestAnimationFrame(frame);}
