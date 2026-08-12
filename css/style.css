@@ -413,3 +413,51 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
   #stage .panel:hover{flex:1}
   .info{display:none}
 }
+
+/* ============================================================
+   ESSAIS DE FOND — trois pistes, activables par ?fond=
+   Le défaut n'est pas touché. Chaque variante ne redéfinit que
+   des variables et deux ou trois règles : rien à démonter si
+   aucune n'est retenue.
+   Le reproche de départ : les tuiles paraissent opaques, parce
+   qu'un fond presque blanc met en face d'elles des aplats denses
+   et saturés. Trois façons d'y répondre.
+   ============================================================ */
+
+/* --- 1 · ENCRE : on éteint le fond plutôt que d'éclaircir les tuiles.
+   Les cartes cessent d'être des blocs posés sur du blanc pour devenir des
+   fenêtres éclairées. Aucune couleur de tuile n'est modifiée. --- */
+body.fond-encre{
+  --page:#101619;
+  --page-glow:radial-gradient(ellipse at 50% 26%,#1c262b 0%,#141c20 55%,#0b1013 100%);
+  --ink:#e9eef0;
+  --ink-60:#8c9ba2;
+  --btn-line:rgba(233,238,240,.32);
+  --panel-shadow:0 30px 70px rgba(0,0,0,.6),0 10px 22px rgba(0,0,0,.45)}
+body.fond-encre .panel{box-shadow:var(--panel-shadow),inset 0 0 0 1px rgba(255,255,255,.09)}
+
+/* --- 2 · VOILE : le fond reste clair, ce sont les tuiles qu'on adoucit.
+   Un voile laiteux et une saturation rentrée les font passer du vernis au
+   pastel. C'est la réponse la plus littérale à « trop opaque ». --- */
+body.fond-voile .panel::after{content:"";position:absolute;inset:0;z-index:11;
+  pointer-events:none;border-radius:8px;
+  background:linear-gradient(165deg,rgba(255,255,255,.20),rgba(255,255,255,.06) 45%,rgba(255,255,255,.14))}
+body.fond-voile .panel{filter:saturate(.78) brightness(1.07) contrast(.95);
+  box-shadow:0 18px 44px rgba(2,20,28,.22),0 6px 14px rgba(0,0,0,.12),
+    inset 0 0 0 1px rgba(255,255,255,.5)}
+body.fond-voile{--page:#eef1f2;
+  --page-glow:radial-gradient(ellipse at 50% 30%,#ffffff 0%,#eaeef0 60%,#dbe1e3 100%)}
+
+/* --- 3 · SABLE : on accorde le fond aux tuiles au lieu de les opposer.
+   Un gris chaud partage leurs sous-tons ; les angles s'arrondissent et
+   l'ombre se fait portante plutôt que découpante. --- */
+body.fond-sable{
+  --page:#e4ded3;
+  --page-glow:radial-gradient(ellipse at 50% 28%,#f2ece1 0%,#e4ded3 58%,#cec7ba 100%);
+  --ink:#2a2620;
+  --ink-60:#6b6355;
+  --btn-line:rgba(42,38,32,.3);
+  --panel-shadow:0 26px 58px rgba(60,48,32,.26),0 8px 18px rgba(60,48,32,.16)}
+body.fond-sable .panel{border-radius:14px;filter:saturate(.88);
+  box-shadow:var(--panel-shadow),inset 0 0 0 1px rgba(255,250,240,.28)}
+body.fond-sable .panel::before{border-radius:14px}

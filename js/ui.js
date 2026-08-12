@@ -1,4 +1,10 @@
 (function(){
+  /* Essais de fond : ?fond=encre|voile|sable pose une classe sur le corps.
+     Sans paramètre, rien ne change. À retirer une fois la piste choisie. */
+  const essai=new URLSearchParams(location.search).get('fond');
+  if(['encre','voile','sable'].includes(essai))
+    document.body.classList.add('fond-'+essai);
+
   /* zoom panneau → chapitre (FLIP) */
   let openPanel=null,spacer=null;
   function openChapter(panel){
