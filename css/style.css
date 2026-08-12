@@ -1,14 +1,15 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 :root{
-  --page:#e8edee;
-  --page-glow:radial-gradient(ellipse at 50% 30%,#ffffff 0%,#e2e8e9 60%,#c5cdcf 100%);
+  --radius:12px;
+  --page:#e6e6e3;
+  --page-glow:radial-gradient(ellipse at 50% 28%,#f2f1ee 0%,#e6e6e3 58%,#d4d4d0 100%);
   --ink:#101f2c;
   --ink-60:#48606f;
   --accent:#d4551a;
   --river:#1f7a72;
   --river-2:#2f8a81;
-  --panel-shadow:0 24px 55px rgba(2,20,28,.4),0 8px 18px rgba(0,0,0,.22);
+  --panel-shadow:0 16px 38px rgba(38,44,48,.15),0 3px 9px rgba(38,44,48,.10);
   --btn-line:rgba(16,31,44,.35);
   --glyph-bed:#182920;
   --glyph-edge:rgba(16,31,44,.35);
@@ -21,7 +22,7 @@ html,body{margin:0;height:100%}
   --accent:#e0602a;
   --river:#2b9c90;
   --river-2:#2a8f84;
-  --panel-shadow:0 24px 55px rgba(0,0,0,.65),0 8px 18px rgba(0,0,0,.4);
+  --panel-shadow:0 18px 42px rgba(0,0,0,.42),0 4px 10px rgba(0,0,0,.26);
   --btn-line:rgba(232,241,234,.35);
   --glyph-bed:#dae4e1;
   --glyph-edge:rgba(232,241,234,.3);
@@ -109,13 +110,12 @@ header .role{margin-top:10px;font-family:'Spline Sans Mono',monospace;font-size:
 .p-moi::after{content:"";position:absolute;inset:auto 0 0 0;height:42%;z-index:5;
   pointer-events:none;
   background:linear-gradient(180deg,transparent,rgba(6,12,18,.78))}
-body.fond-sable .p-moi{border-radius:14px}
 
 /* ================= PANEL (commun) ================= */
-.panel{position:relative;flex:1;min-width:0;overflow:hidden;border-radius:8px;
+.panel{position:relative;flex:1;min-width:0;overflow:hidden;border-radius:var(--radius);
   isolation:isolate;cursor:pointer;user-select:none;border:none;padding:0;text-align:left;
   contain:layout paint;container-type:inline-size;
-  box-shadow:var(--panel-shadow),inset 0 0 0 1px rgba(255,255,255,.06);
+  box-shadow:var(--panel-shadow);
   /* Survol : 0,34 s, et une courbe qui démarre vite pour se poser doucement.
      À 0,85 s avec cubic-bezier(.76,0,.2,1) — courbe lente aux deux bouts — une
      tuile n'avait pas fini de s'ouvrir que la suivante commençait dès qu'on
@@ -130,9 +130,12 @@ body.fond-sable .p-moi{border-radius:14px}
 body.chapter-open #stage .panel:not(.zooming){pointer-events:none}
 body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 .panel:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.panel::before{content:"";position:absolute;inset:0;z-index:10;border-radius:8px;
-  pointer-events:none;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 -1px 0 rgba(0,0,0,.25)}
+/* Il ne reste qu'un filet de lumière en haut : assez pour donner du relief,
+   trop peu pour découper la carte. Le liseré blanc tout autour et l'ombre
+   intérieure basse dessinaient un bord franc, qui posait la tuile SUR la page
+   au lieu de l'y inscrire. */
+.panel::before{content:"";position:absolute;inset:0;z-index:10;border-radius:var(--radius);
+  pointer-events:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.09)}
 .deep,.glint{will-change:transform,opacity;backface-visibility:hidden}
 .deep{position:absolute;inset:-10%;z-index:0;animation:deepDrift 20s ease-in-out infinite alternate}
 @keyframes deepDrift{
@@ -443,17 +446,15 @@ body.fond-encre{
   --ink-60:#8c9ba2;
   --btn-line:rgba(233,238,240,.32);
   --panel-shadow:0 30px 70px rgba(0,0,0,.6),0 10px 22px rgba(0,0,0,.45)}
-body.fond-encre .panel{box-shadow:var(--panel-shadow),inset 0 0 0 1px rgba(255,255,255,.09)}
 
 /* --- 2 · VOILE : le fond reste clair, ce sont les tuiles qu'on adoucit.
    Un voile laiteux et une saturation rentrée les font passer du vernis au
    pastel. C'est la réponse la plus littérale à « trop opaque ». --- */
 body.fond-voile .panel::after{content:"";position:absolute;inset:0;z-index:11;
-  pointer-events:none;border-radius:8px;
+  pointer-events:none;border-radius:var(--radius);
   background:linear-gradient(165deg,rgba(255,255,255,.20),rgba(255,255,255,.06) 45%,rgba(255,255,255,.14))}
 body.fond-voile .panel{filter:saturate(.78) brightness(1.07) contrast(.95);
-  box-shadow:0 18px 44px rgba(2,20,28,.22),0 6px 14px rgba(0,0,0,.12),
-    inset 0 0 0 1px rgba(255,255,255,.5)}
+  box-shadow:0 18px 44px rgba(2,20,28,.22),0 6px 14px rgba(0,0,0,.12)}
 body.fond-voile{--page:#eef1f2;
   --page-glow:radial-gradient(ellipse at 50% 30%,#ffffff 0%,#eaeef0 60%,#dbe1e3 100%)}
 
@@ -467,6 +468,5 @@ body.fond-sable{
   --ink-60:#6b6355;
   --btn-line:rgba(42,38,32,.3);
   --panel-shadow:0 26px 58px rgba(60,48,32,.26),0 8px 18px rgba(60,48,32,.16)}
-body.fond-sable .panel{border-radius:14px;filter:saturate(.88);
+body.fond-sable .panel{filter:saturate(.88);
   box-shadow:var(--panel-shadow),inset 0 0 0 1px rgba(255,250,240,.28)}
-body.fond-sable .panel::before{border-radius:14px}
