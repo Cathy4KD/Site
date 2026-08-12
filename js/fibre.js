@@ -19,38 +19,45 @@
   const pctx=paper.getContext('2d');
 
 
-  /* Le grain se dessine EN PIXELS RÉELS, à densité constante : quand la tuile
-     grandit on voit plus de fibres, pas des fibres plus grosses. Le bâtir dans
-     un repère fixe puis l'étirer donnait un effet de zoom — en plein écran les
-     fibres devenaient des bandes.
+  /* Le grain est bâti UNE SEULE FOIS, pour la plus grande taille utile — le
+     plein écran — puis dessiné 1:1 et simplement rogné par la tuile. Il garde
+     donc exactement la même finesse dans tous les états : agrandir la carte
+     révèle davantage de feuille, sans jamais l'étirer ni la redessiner.
 
-     Pour que le motif reste malgré tout identique d'une reconstruction à
-     l'autre, chaque brin tire ses paramètres d'une graine calculée depuis son
-     INDICE, et non d'un flux commun : en ajouter au bas de la feuille ne
-     déplace pas ceux du haut. Un flux commun divergeait dès que le nombre de
-     tirages changeait, et c'est ce qui faisait sauter le motif.
+     Auparavant il était rebâti au moment du clic, dimensionné pour le plein
+     écran puis étiré dans une tuile encore petite : le grain devenait trois
+     fois plus fin d'un coup, et la reconstruction de ~2400 traits figeait une
+     image au pire moment.
 
-     Les grandes plages de tons et la vignette, elles, sont composées : elles
-     suivent la tuile, comme un éclairage. */
+     Chaque brin tire sa graine de son INDICE, chaque tache des COORDONNÉES de
+     sa cellule. Un flux commun divergerait dès que le nombre de tirages change,
+     et c'est ce qui faisait sauter le motif.
+
+     Le fond et les bords vieillis, eux, se tracent à chaque rendu, à la taille
+     de la tuile : ce sont des éléments de composition, comme un éclairage, et
+     il est juste qu'ils suivent le cadre. */
   const brin=n=>Matiere.seeded(0xFA9B1^Math.imul(n,2654435761));
   const cellule=(cx,cy)=>Matiere.seeded(0x5A17^Math.imul(cx,73856093)^Math.imul(cy,19349663));
 
-  function buildPaper(pw,ph,W,H){   /* W,H : dimensions CIBLES, pas courantes */
-    paper.width=pw;paper.height=ph;
-    pctx.setTransform(pw/W,0,0,ph/H,0,0);
+  let grainW=0,grainH=0;
+  function buildGrain(){
+    /* Budget propre, plus large que celui des tampons redessinés à chaque
+       image : cette couche-ci est statique, on peut se permettre du détail. */
+    const lw=Math.max(innerWidth,1000),lh=Math.max(innerHeight,1000);
+    const d=Math.min(2,window.devicePixelRatio||1);
+    const s=Math.min(d,Math.sqrt(4e6/(lw*lh)));
+    paper.width=Math.round(lw*s);paper.height=Math.round(lh*s);
+    grainW=lw;grainH=lh;
+    pctx.setTransform(s,0,0,s,0,0);
+    pctx.clearRect(0,0,lw,lh);
     pctx.lineCap='round';pctx.lineJoin='round';
 
-    /* fond papyrus : beige chaud — composition, donc proportionnel */
-    const g=pctx.createLinearGradient(0,0,W*.15,H);
-    g.addColorStop(0,'#ecdcb0');g.addColorStop(.5,'#ddc890');g.addColorStop(1,'#ccb075');
-    pctx.fillStyle=g;pctx.fillRect(0,0,W,H);
-
-    /* plages de tons : casse l'uniformité, suit la tuile */
-    for(let i=0;i<7;i++){
+    /* plages de tons : irrégularités de la feuille */
+    for(let i=0;i<10;i++){
       const r=brin(9000+i);
-      const x=r()*W,y=r()*H,rr=(.2+r()*.35)*H;
+      const x=r()*lw,y=r()*lh,rr=(.15+r()*.3)*lh;
       const m=pctx.createRadialGradient(x,y,0,x,y,rr);
-      m.addColorStop(0,r()<.5?'rgba(255,246,214,.12)':'rgba(150,120,66,.10)');
+      m.addColorStop(0,r()<.5?'rgba(255,246,214,.13)':'rgba(150,120,66,.11)');
       m.addColorStop(1,'rgba(0,0,0,0)');
       pctx.fillStyle=m;pctx.beginPath();pctx.arc(x,y,rr,0,6.2832);pctx.fill();
     }
@@ -58,7 +65,7 @@
     const SEG=60;                    /* pas d'échantillonnage des ondulations */
 
     /* grain dominant : fibres horizontales, une tous les 0,9 px */
-    const PAS_H=.9,nH=Math.ceil(H/PAS_H);
+    const PAS_H=.9,nH=Math.ceil(lh/PAS_H);
     for(let i=0;i<nH;i++){
       const r=brin(i);
       const y=i*PAS_H+(r()*2-1)*PAS_H*1.6;
@@ -66,12 +73,12 @@
       pctx.lineWidth=.6+r()*1.1;
       const amp=.4+r()*1.4,ph2=r()*6.2832,fq=.01+r()*.02;
       pctx.beginPath();
-      for(let x=0;x<=W;x+=SEG){const yy=y+Math.sin(x*fq+ph2)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
+      for(let x=0;x<=lw;x+=SEG){const yy=y+Math.sin(x*fq+ph2)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
       pctx.stroke();
     }
 
     /* sous-couche : fibres croisées, plus rares et plus discrètes */
-    const PAS_V=2,nV=Math.ceil(W/PAS_V);
+    const PAS_V=2,nV=Math.ceil(lw/PAS_V);
     for(let i=0;i<nV;i++){
       const r=brin(400000+i);
       const x=i*PAS_V+(r()*2-1)*PAS_V*1.4;
@@ -79,12 +86,12 @@
       pctx.lineWidth=.6+r()*.8;
       const amp=.4+r()*1.2,ph2=r()*6.2832,fq=.01+r()*.02;
       pctx.beginPath();
-      for(let y=0;y<=H;y+=SEG){const xx=x+Math.sin(y*fq+ph2)*amp;y?pctx.lineTo(xx,y):pctx.moveTo(xx,y);}
+      for(let y=0;y<=lh;y+=SEG){const xx=x+Math.sin(y*fq+ph2)*amp;y?pctx.lineTo(xx,y):pctx.moveTo(xx,y);}
       pctx.stroke();
     }
 
     /* jointures de lamelles : une bande tous les ~50 px */
-    const PAS_J=50,nJ=Math.ceil(H/PAS_J);
+    const PAS_J=50,nJ=Math.ceil(lh/PAS_J);
     for(let i=1;i<nJ;i++){
       const r=brin(800000+i);
       const y=i*PAS_J+(r()*2-1)*PAS_J*.4;
@@ -92,16 +99,14 @@
       pctx.lineWidth=.8+r()*.8;
       const amp=.6+r()*1.4,ph2=r()*6.2832,fq=.008+r()*.012;
       pctx.beginPath();
-      for(let x=0;x<=W;x+=SEG){const yy=y+Math.sin(x*fq+ph2)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
+      for(let x=0;x<=lw;x+=SEG){const yy=y+Math.sin(x*fq+ph2)*amp;x?pctx.lineTo(x,yy):pctx.moveTo(x,yy);}
       pctx.stroke();
     }
 
-    /* taches d'âge : une par cellule de 51 px, graine tirée des COORDONNÉES de
-       la cellule — une tache donnée reste donc à sa place quelle que soit la
-       taille de la feuille */
+    /* taches d'âge : une par cellule de 51 px, graine tirée de ses coordonnées */
     const CEL=51;
-    for(let cy=0;cy<Math.ceil(H/CEL);cy++)
-      for(let cx=0;cx<Math.ceil(W/CEL);cx++){
+    for(let cy=0;cy<Math.ceil(lh/CEL);cy++)
+      for(let cx=0;cx<Math.ceil(lw/CEL);cx++){
         const r=cellule(cx,cy);
         if(r()>.62)continue;
         const x=(cx+r())*CEL,y=(cy+r())*CEL,rr=6+r()*20;
@@ -110,12 +115,8 @@
         m.addColorStop(1,'rgba(120,84,40,0)');
         pctx.fillStyle=m;pctx.beginPath();pctx.arc(x,y,rr,0,6.2832);pctx.fill();
       }
-
-    /* bords vieillis : composition */
-    const vg=pctx.createRadialGradient(W*.5,H*.5,H*.3,W*.5,H*.5,H*.82);
-    vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(70,46,18,.28)');
-    pctx.fillStyle=vg;pctx.fillRect(0,0,W,H);
   }
+
 
 
   /* les signes déjà écrits suivent l'agrandissement de la feuille */
@@ -269,7 +270,16 @@
   function render(){
     ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
     ctx.clearRect(0,0,W,H);
-    ctx.drawImage(paper,0,0,W,H);
+    /* fond papyrus : composition, donc à la taille de la tuile */
+    const g=ctx.createLinearGradient(0,0,W*.15,H);
+    g.addColorStop(0,'#ecdcb0');g.addColorStop(.5,'#ddc890');g.addColorStop(1,'#ccb075');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    /* grain 1:1 : la tuile en montre ce qu'elle peut, jamais étiré */
+    ctx.drawImage(paper,0,0,grainW,grainH);
+    /* bords vieillis : composition */
+    const vg=ctx.createRadialGradient(W*.5,H*.5,H*.3,W*.5,H*.5,H*.82);
+    vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(70,46,18,.28)');
+    ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
     const t=now();
     for(let i=glyphs.length-1;i>=0;i--){
       const g=glyphs[i];const age=t-g.born;let a=1,pr=1;
@@ -286,14 +296,20 @@
 
   function loop(){if(dirty)render();requestAnimationFrame(loop);}
 
+  buildGrain();
+  let grainT=0;
+  addEventListener('resize',()=>{
+    clearTimeout(grainT);
+    grainT=setTimeout(()=>{
+      if(innerWidth>grainW||innerHeight>grainH){buildGrain();dirty=true;render();}
+    },400);
+  });
+
   Matiere.sizing(panel,canvas,{
     setSize:(w,h)=>{W=w;H=h;},
     transpose,
-    /* La feuille est rebâtie EXACTEMENT quand le tampon l est, à sa taille :
-       une fois par zoom, jamais au milieu. Elle coûte ~2200 traits, soit une
-       cinquantaine de millisecondes ; deux reconstructions en pleine
-       transition faisaient tomber des images. */
-    alloc:(bw,bh,lw,lh)=>{canvas.width=bw;canvas.height=bh;buildPaper(bw,bh,lw,lh);},
+    /* Le tampon seul est redimensionné : le grain, lui, ne bouge jamais. */
+    alloc:(bw,bh)=>{canvas.width=bw;canvas.height=bh;},
     remap:()=>{dirty=true;},
     redraw:render
   });
