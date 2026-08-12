@@ -106,10 +106,17 @@
      sur des fibres horizontales. */
   function resize(){
     const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height)return;
+    const oldW=W,oldH=H;
     W=r.width;H=r.height;
-    if(!W||!H)return;
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
+    /* les signes déjà écrits suivent l'agrandissement de la feuille */
+    if(oldW&&oldH){
+      const sx=W/oldW,sy=H/oldH;
+      for(const g of glyphs){g.x*=sx;g.y*=sy;}
+      if(lastX>=0){lastX*=sx;lastY*=sy;}
+    }
     buildPaper();
     dirty=true;
   }

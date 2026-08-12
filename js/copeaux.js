@@ -77,14 +77,26 @@
      immédiat et on diffère la texture : entre-temps drawImage l'étire, ce qui
      ne se voit pas sur un fond brossé. */
   function resize(){
-    const r=panel.getBoundingClientRect();W=r.width;H=r.height;
-    if(!W||!H)return;
+    const r=panel.getBoundingClientRect();
+    if(!r.width||!r.height)return;
+    const oldW=W,oldH=H;
+    W=r.width;H=r.height;
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
     tr.width=Math.round(W*DPR);tr.height=Math.round(H*DPR);
     trx.setTransform(DPR,0,0,DPR,0,0);trx.clearRect(0,0,W,H);
-    path.length=0;
-    Px=W*.5;Py=H*.45;
+    /* La tuile change de largeur au survol. On TRANSPOSE l'état vers la
+       nouvelle taille au lieu de le jeter : effacer la rainure et renvoyer
+       l'outil au centre coupait net le geste en cours, juste au moment où
+       l'élargissement se terminait. Les coordonnées sont en pixels CSS, une
+       simple mise à l'échelle suffit. */
+    if(oldW&&oldH){
+      const sx=W/oldW,sy=H/oldH;
+      for(const p of path){p.x*=sx;p.y*=sy;}
+      for(const c of chips){c.x*=sx;c.y*=sy;}
+      for(const s of sparks){s.x*=sx;s.y*=sy;}
+      Px*=sx;Py*=sy;
+    }else{Px=W*.5;Py=H*.45;}
     buildMetal();
     if(reduce)drawStatic();
   }

@@ -41,9 +41,24 @@
       const nw=Math.min(MAXW,Math.max(60,Math.round(r.width/2)));
       const nh=Math.min(MAXH,Math.max(60,Math.round(r.height/2)));
       if(nw===w&&nh===h)return;          /* rien n'a bougé : on ne jette rien */
+      /* On REPORTE les ondes en cours sur la nouvelle grille (plus proche
+         voisin) plutôt que de repartir d'une surface plate : sans cela, l'eau
+         que l'on venait d'agiter redevenait lisse à la fin de l'élargissement,
+         ce qui coupait net le geste. */
+      const oc=curr,op=prev,ow=w,oh=h;
       w=nw;h=nh;
       canvas.width=w;canvas.height=h;
-      curr=new Float32Array(w*h);prev=new Float32Array(w*h);
+      const nc=new Float32Array(w*h),np=new Float32Array(w*h);
+      if(oc&&ow&&oh){
+        for(let y=0;y<h;y++){
+          const so=Math.min(oh-1,(y*oh/h)|0)*ow,dn=y*w;
+          for(let x=0;x<w;x++){
+            const sx=Math.min(ow-1,(x*ow/w)|0);
+            nc[dn+x]=oc[so+sx];np[dn+x]=op[so+sx];
+          }
+        }
+      }
+      curr=nc;prev=np;
       bg=makeBackground(w,h,cfg);
       img=ctx.createImageData(w,h);
     }

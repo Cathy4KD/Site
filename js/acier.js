@@ -49,9 +49,20 @@
   function applyResize(){
     const r=panel.getBoundingClientRect();
     if(!r.width||!r.height)return;
+    const oldW=W,oldH=H;
     W=r.width;H=r.height;
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
+    /* Étincelles et tronçons en vol sont transposés vers la nouvelle taille :
+       sinon ils sautaient d'un coup à la fin de l'élargissement. Le garde
+       « oldW » saute ce bloc au tout premier appel, où parts et branches ne
+       sont pas encore déclarés. */
+    if(oldW&&oldH){
+      const sx=W/oldW,sy=H/oldH;
+      for(const p of parts){p.x*=sx;p.y*=sy;}
+      branches.forEach(b=>{b.tipY*=sy;});
+      for(const rm of remnants){rm.topY*=sy;rm.cx*=sx;rm.cy*=sy;}
+    }
   }
   let resizeT=0;
   applyResize();
