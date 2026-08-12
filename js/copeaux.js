@@ -70,19 +70,12 @@
     mx.fillStyle=vg;mx.fillRect(0,0,W,H);
   }
   /* Le survol anime « flex » sur 0,85 s : la largeur change à chaque image et
-     ResizeObserver tire une cinquantaine de fois d'affilée, sur les cinq
-     tuiles à la fois. Réallouer le tampon et refaire le métal (~1500 traits)
-     à ce rythme saccadait la transition. Mais garder le tampon figé pendant
-     que le CSS l'étire décale tout ce qu'on y dessine : la plaquette d'outil
-     ne collait plus au curseur.
-
-     D'où deux temps. REMAP, à chaque image : on met à jour W/H et on règle la
-     matrice sur bw/W — dessiner en coordonnées CSS courantes atterrit alors
-     au bon endroit malgré l'étirement, sans rien allouer. RESIZEBUFFER, une
-     fois stabilisé : le tampon reprend sa taille exacte et la netteté avec. */
-  let bw=0,bh=0;                      /* taille réelle des tampons, en pixels */
-  let SX=DPR,SY=DPR;                  /* échelle courante : CSS → tampon */
-
+     ResizeObserver tire une cinquantaine de fois d'affilée, sur les cinq tuiles
+     à la fois. Ce qui coûtait cher là-dedans, c'était de refaire le métal
+     (~1500 traits) à chaque appel — pas de réallouer le tampon. Différer le
+     tampon, comme je l'avais fait ensuite, laissait l'image à l'ancienne
+     résolution et au mauvais rapport d'aspect pendant toute la transition,
+     puis tout se remettait d'un coup : flou, puis saut. */
   function transpose(oldW,oldH){
     /* On transpose l'état au lieu de le jeter : effacer la rainure et renvoyer
        l'outil au centre coupait net le geste en cours. */
@@ -93,31 +86,27 @@
     for(const s of sparks){s.x*=sx;s.y*=sy;}
     Px*=sx;Py*=sy;
   }
-  function remap(){
+  /* Le tampon suit la tuile immédiatement — c'est bon marché et cela garde la
+     résolution et le rapport d'aspect justes tout du long. Seul buildMetal()
+     (~1500 traits) reste différé : entre-temps drawImage étire l'ancienne
+     texture, ce qui ne se voit pas sur un fond brossé. */
+  let textureT=0;
+  function resize(){
     const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height||!bw)return;
+    if(!r.width||!r.height)return false;
     const oldW=W,oldH=H;
     W=r.width;H=r.height;
-    transpose(oldW,oldH);
-    SX=bw/W;SY=bh/H;
-    ctx.setTransform(SX,0,0,SY,0,0);
-    trx.setTransform(SX,0,0,SY,0,0);
-  }
-  function resizeBuffer(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return;
-    const oldW=W,oldH=H;
-    W=r.width;H=r.height;
+    if(oldW===W&&oldH===H)return false;
     transpose(oldW,oldH);
     if(!oldW||!oldH){Px=W*.5;Py=H*.45;}
-    bw=Math.round(W*DPR);bh=Math.round(H*DPR);
-    canvas.width=bw;canvas.height=bh;
-    tr.width=bw;tr.height=bh;
-    SX=DPR;SY=DPR;
-    ctx.setTransform(SX,0,0,SY,0,0);
-    trx.setTransform(SX,0,0,SY,0,0);
-    buildMetal();
-    if(reduce)drawStatic();
+    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    tr.width=Math.round(W*DPR);tr.height=Math.round(H*DPR);
+    trx.setTransform(DPR,0,0,DPR,0,0);
+    if(!mc.width)buildMetal();                 /* première fois : tout de suite */
+    clearTimeout(textureT);
+    textureT=setTimeout(()=>{buildMetal();if(reduce)drawStatic();},150);
+    return true;
   }
 
   const chips=[],sparks=[];
@@ -185,7 +174,7 @@
   }
 
   function drawStatic(){
-    ctx.setTransform(SX,0,0,SY,0,0);ctx.clearRect(0,0,W,H);
+    ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
     ctx.drawImage(mc,0,0,W,H);drawInsert();drawGlow(.9);
     for(let i=0;i<9;i++){const a=-2.3+i*.16;
       drawChip({x:Px+Math.cos(a)*(30+i*10),y:Py+Math.sin(a)*(30+i*9),
@@ -194,14 +183,14 @@
   }
 
   let last=0,accC=0,accS=0,cut=0,over=false;
-  function frame(now){
+  function render(now){
     const dt=Math.min(.05,(now-last)/1000);last=now;
     cut=Math.max(0,cut-dt*2.6);                 /* la coupe retombe quand on arrête */
     if(over&&cut>.02){
       accC+=dt*cut*24;while(accC>=1){accC--;spawnChip();}
       accS+=dt*cut*230;while(accS>=1){accS--;spawnSpark();}
     }
-    ctx.setTransform(SX,0,0,SY,0,0);ctx.clearRect(0,0,W,H);
+    ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
     ctx.drawImage(mc,0,0,W,H);
     /* rainure entière redessinée lissée, puis composée à opacité fixe */
     drawTrace(now/1000);
@@ -230,8 +219,8 @@
       ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(s.x,s.y);ctx.stroke();
     }
     ctx.globalCompositeOperation='source-over';
-    requestAnimationFrame(frame);
   }
+  function frame(now){render(now);requestAnimationFrame(frame);}
 
   /* interaction : la plaquette coupe là où passe la souris */
   let pmx=-1,pmy=-1;
@@ -246,12 +235,9 @@
   panel.addEventListener('pointerenter',e=>{const[x,y]=pos(e);pmx=x;pmy=y;Px=x;Py=y;over=true;});
   panel.addEventListener('pointerleave',()=>{over=false;pmx=-1;pmy=-1;});
 
-  let resizeT=0;
-  resizeBuffer();
+  resize();
   new ResizeObserver(()=>{
-    remap();                                  /* alignement immédiat, sans allocation */
-    clearTimeout(resizeT);
-    resizeT=setTimeout(resizeBuffer,150);     /* netteté rétablie une fois stabilisé */
+    if(resize()&&!reduce)render(performance.now());  /* pas d'image vide */
   }).observe(panel);
   if(!reduce){last=performance.now();requestAnimationFrame(frame);}
 })();

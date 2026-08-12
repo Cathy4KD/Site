@@ -148,21 +148,27 @@ void main(){
   const uM=gl.getUniformLocation(prog,'uM');
   const uCur=gl.getUniformLocation(prog,'uCur');
 
-  /* Même raison que pour les autres matières : redimensionner le tampon WebGL
-     à chaque image du survol coûtait plus cher que de laisser le CSS étirer
-     l'ancien pendant les 0,85 s de la transition. */
+  /* Le shader tire son rapport d'aspect de uRes : différer la mise à jour le
+     laissait calculer sur l'ancienne forme pendant toute la transition, puis
+     la goutte se remettait d'un coup — le saut. Le tampon suit donc la tuile
+     immédiatement. Un redimensionnement WebGL ne coûte qu'une réallocation et
+     deux appels : rien de comparable à un rendu logiciel.
+     On redessine dans la foulée, car le rappel de ResizeObserver arrive après
+     les requestAnimationFrame et le tampon fraîchement dimensionné est vide —
+     sans ce dessin, une image entièrement blanche s'affiche. */
   function applyResize(){
     const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return;
-    canvas.width=Math.round(r.width*DPR);
-    canvas.height=Math.round(r.height*DPR);
-    gl.viewport(0,0,canvas.width,canvas.height);
-    gl.uniform2f(uRes,canvas.width,canvas.height);
+    if(!r.width||!r.height)return false;
+    const w=Math.round(r.width*DPR),h=Math.round(r.height*DPR);
+    if(w===canvas.width&&h===canvas.height)return false;
+    canvas.width=w;canvas.height=h;
+    gl.viewport(0,0,w,h);
+    gl.uniform2f(uRes,w,h);
+    return true;
   }
-  let resizeT=0;
   applyResize();
   new ResizeObserver(()=>{
-    clearTimeout(resizeT);resizeT=setTimeout(applyResize,150);
+    if(applyResize())draw();
   }).observe(panel);
 
   const M=new Float32Array(40);
@@ -188,11 +194,11 @@ void main(){
   });
   panel.addEventListener('pointerleave',()=>{lastMx=-1;curX=-1});
 
-  (function loop(){
+  function draw(){
     gl.uniform1f(uT,(performance.now()-t0)/1000);
     gl.uniform4fv(uM,M);
     gl.uniform2f(uCur,curX,curX>=0?1:0);
     gl.drawArrays(gl.TRIANGLES,0,3);
-    requestAnimationFrame(loop);
-  })();
+  }
+  (function loop(){draw();requestAnimationFrame(loop);})();
 })();

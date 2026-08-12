@@ -40,17 +40,20 @@
   let W=0,H=0,mx=-1,my=-1;
   let bx=-200,by=-200,heat=0;          /* sphère amortie + chauffe progressive */
 
-  /* Redimensionner un canvas réalloue son tampon graphique et l'efface. Au
-     survol, « flex » est animé sur 0,85 s et les cinq tuiles se partagent la
-     rangée : l'observateur tire à chaque image, sur chaque tuile. On rejouait
-     donc cette réallocation une cinquantaine de fois par survol et par canvas.
-     Tout est différé de 150 ms ; entre-temps remap() recale la matrice pour
-     que le dessin reste aligné sur le curseur malgré l'étirement. */
-  let bw=0,bh=0;                      /* taille réelle du tampon, en pixels */
+  /* Le tampon suit la tuile IMMÉDIATEMENT. Le différer laissait l'image à
+     l'ancienne résolution et au mauvais rapport d'aspect pendant les 0,85 s
+     de la transition, puis tout se remettait d'un coup : flou, puis saut.
+     Réallouer un tampon est bien moins cher que ce que je craignais — le vrai
+     coût était la reconstruction des textures, qui reste seule différée.
+
+     Reste un piège : les rappels de ResizeObserver s'exécutent APRÈS les
+     requestAnimationFrame mais AVANT le rendu, et affecter canvas.width efface
+     le canvas. Redimensionner sans redessiner dans la foulée affichait donc
+     une image entièrement vide — le clignotement. D'où l'appel à step() juste
+     après, dans le même rappel. */
   /* Étincelles et tronçons en vol sont transposés vers la nouvelle taille :
-     sinon ils sautaient d'un coup à la fin de l'élargissement. Le garde
-     « oldW » saute ce bloc au tout premier appel, où parts et branches ne
-     sont pas encore déclarés. */
+     sinon ils sautaient d'un coup. Le garde « oldW » saute ce bloc au tout
+     premier appel, où parts et branches ne sont pas encore déclarés. */
   function transpose(oldW,oldH){
     if(!oldW||!oldH||(oldW===W&&oldH===H))return;
     const sx=W/oldW,sy=H/oldH;
@@ -60,30 +63,18 @@
   }
   function applyResize(){
     const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return;
+    if(!r.width||!r.height)return false;
     const oldW=W,oldH=H;
     W=r.width;H=r.height;
+    if(oldW===W&&oldH===H)return false;
     transpose(oldW,oldH);
-    bw=Math.round(W*DPR);bh=Math.round(H*DPR);
-    canvas.width=bw;canvas.height=bh;
+    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
+    return true;
   }
-  /* Recalage immédiat sans allocation : tant que le tampon garde son ancienne
-     taille, on règle la matrice sur bw/W pour que le jet et la sphère restent
-     alignés sur le curseur malgré l'étirement CSS. */
-  function remap(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height||!bw)return;
-    const oldW=W,oldH=H;
-    W=r.width;H=r.height;
-    transpose(oldW,oldH);
-    ctx.setTransform(bw/W,0,0,bh/H,0,0);
-  }
-  let resizeT=0;
   applyResize();
   new ResizeObserver(()=>{
-    remap();
-    clearTimeout(resizeT);resizeT=setTimeout(applyResize,150);
+    if(applyResize())step(performance.now());   /* redessin immédiat : pas d'image vide */
   }).observe(panel);
 
   panel.addEventListener('pointermove',e=>{
@@ -244,8 +235,7 @@
   let branches=new Map(),remnants=[],lastT=performance.now();
   const t0=lastT;
 
-  (function loop(now){
-    requestAnimationFrame(loop);
+  function step(now){
     const t=(now-t0)/1000,dt=Math.min(.05,(now-lastT)/1000);lastT=now;
     if(!W)return;
     ctx.clearRect(0,0,W,H);
@@ -339,5 +329,6 @@
       if(heat>.4&&Math.random()<dt*4)
         spawn(bx+rnd(-R*.5,R*.5),by+R-2,rnd(-15,15),rnd(0,40),rnd(1.6,2.6),rnd(.7,1.3));
     }
-  })(performance.now());
+  }
+  (function loop(now){requestAnimationFrame(loop);step(now);})(performance.now());
 })();

@@ -98,16 +98,13 @@
     pctx.fillStyle=vg;pctx.fillRect(0,0,W,H);
   }
 
-  /* Le survol anime « flex » sur 0,85 s : ResizeObserver tire à chaque image.
-     Redessiner la feuille (~2900 traits, plus les gradients et les taches)
-     autant de fois bloquait le fil principal — celui qui calcule justement la
-     transition. On procède donc en deux temps : remap() recale la matrice à
-     chaque image, sans rien allouer, pour que les signes restent sous le
-     curseur malgré l'étirement ; resize() refait la feuille une fois la tuile
-     stabilisée. */
-  let bw=0,bh=0;                      /* taille réelle du tampon, en pixels */
-  let SX=DPR,SY=DPR;                  /* échelle courante : CSS → tampon */
-
+  /* Le tampon suit la tuile immédiatement : le différer laissait la feuille
+     à l'ancienne résolution puis la remettait d'un coup. Seule la
+     reconstruction du papyrus (~2900 traits) reste différée — entre-temps
+     drawImage étire l'ancienne feuille, invisible sur des fibres
+     horizontales. Le rappel de ResizeObserver arrivant après les
+     requestAnimationFrame, on redessine dans la foulée : sans cela le canvas
+     fraîchement dimensionné, donc vide, s'affiche pendant une image. */
   /* les signes déjà écrits suivent l'agrandissement de la feuille */
   function transpose(oldW,oldH){
     if(!oldW||!oldH||(oldW===W&&oldH===H))return;
@@ -115,27 +112,21 @@
     for(const g of glyphs){g.x*=sx;g.y*=sy;}
     if(lastX>=0){lastX*=sx;lastY*=sy;}
   }
-  function remap(){
-    const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height||!bw)return;
-    const oldW=W,oldH=H;
-    W=r.width;H=r.height;
-    transpose(oldW,oldH);
-    SX=bw/W;SY=bh/H;
-    dirty=true;
-  }
+  let textureT=0;
   function resize(){
     const r=panel.getBoundingClientRect();
-    if(!r.width||!r.height)return;
+    if(!r.width||!r.height)return false;
     const oldW=W,oldH=H;
     W=r.width;H=r.height;
+    if(oldW===W&&oldH===H)return false;
     transpose(oldW,oldH);
-    bw=Math.round(W*DPR);bh=Math.round(H*DPR);
-    canvas.width=bw;canvas.height=bh;
-    SX=DPR;SY=DPR;
-    ctx.setTransform(SX,0,0,SY,0,0);
-    buildPaper();
+    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    if(!paper.width)buildPaper();              /* première fois : tout de suite */
+    clearTimeout(textureT);
+    textureT=setTimeout(()=>{buildPaper();dirty=true;render();},150);
     dirty=true;
+    return true;
   }
 
   /* ---- écriture hiéroglyphique ---- */
@@ -281,7 +272,7 @@
   }
 
   function render(){
-    ctx.setTransform(SX,0,0,SY,0,0);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.clearRect(0,0,W,H);
     ctx.drawImage(paper,0,0,W,H);
     const t=now();
@@ -300,11 +291,9 @@
 
   function loop(){if(dirty)render();requestAnimationFrame(loop);}
 
-  let resizeT=0;
   resize();
   new ResizeObserver(()=>{
-    remap();
-    clearTimeout(resizeT);resizeT=setTimeout(resize,150);
+    if(resize())render();                    /* pas d'image vide */
   }).observe(panel);
 
   const pos=e=>{const r=panel.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];};

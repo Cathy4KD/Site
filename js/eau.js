@@ -41,10 +41,18 @@
       const nw=Math.min(MAXW,Math.max(60,Math.round(r.width/2)));
       const nh=Math.min(MAXH,Math.max(60,Math.round(r.height/2)));
       if(nw===w&&nh===h)return;          /* rien n'a bougé : on ne jette rien */
+      /* La grille n'est PAS refaite pour un simple survol. L'eau est déjà
+         fortement suréchantillonnée par le CSS (106 cellules étirées sur
+         212 px au repos) : l'étirement supplémentaire de 1,8× ne se distingue
+         pas. En revanche le rééchantillonnage en fin de transition, lui, se
+         voyait — la surface changeait d'un coup. On ne reconstruit donc que
+         sur un vrai changement d'échelle, comme l'ouverture d'un chapitre. */
+      if(w&&h){
+        const rw=nw/w,rh=nh/h;
+        if(rw>.45&&rw<2.2&&rh>.45&&rh<2.2)return;
+      }
       /* On REPORTE les ondes en cours sur la nouvelle grille (plus proche
-         voisin) plutôt que de repartir d'une surface plate : sans cela, l'eau
-         que l'on venait d'agiter redevenait lisse à la fin de l'élargissement,
-         ce qui coupait net le geste. */
+         voisin) plutôt que de repartir d'une surface plate. */
       const oc=curr,op=prev,ow=w,oh=h;
       w=nw;h=nh;
       canvas.width=w;canvas.height=h;
@@ -62,13 +70,10 @@
       bg=makeBackground(w,h,cfg);
       img=ctx.createImageData(w,h);
     }
-    /* Contrairement aux autres matières, la grille ne peut pas être
-       redimensionnée à bas coût : il faut réallouer deux Float32Array et
-       re-rendre le fond. Pendant le survol (« flex » animé sur 0,85 s),
-       ResizeObserver tire à chaque image — on remettait donc l'eau à plat
-       cinquante fois de suite, ondes comprises. Tout est différé : le temps
-       de la transition, l'ancienne grille est simplement étirée par le CSS,
-       ce qui ne se voit pas sur une surface d'eau. */
+    /* Le seuil ci-dessus fait que le survol ne reconstruit rien du tout ;
+       la temporisation ne sert plus qu'aux changements d'échelle réels
+       (ouverture ou fermeture d'un chapitre), où un unique rééchantillonnage
+       suffit une fois la taille stabilisée. */
     let resizeT=0;
     rebuild();
     new ResizeObserver(()=>{
