@@ -105,9 +105,8 @@ header .poste a:focus-visible{outline:2px solid var(--accent);outline-offset:3px
   color:var(--ink);text-decoration:none;
   border:1px solid var(--btn-line);border-radius:999px;padding:4px 12px 4px 5px;
   transition:color .3s,border-color .3s,background-color .3s}
-/* le logo est bleu sur blanc : il garde son fond propre, sinon il disparaît en thème sombre */
-.pemac img{height:22px;width:auto;display:block;flex:none;
-  background:#fff;border-radius:4px;padding:1px 2px}
+/* fond détouré : le monogramme se pose à même la page, sans carré blanc */
+.pemac img{height:22px;width:auto;display:block;flex:none}
 .pemac .ext{width:10px;height:10px;flex:none;fill:none;stroke:currentColor;
   stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.7;
   transition:opacity .3s}
