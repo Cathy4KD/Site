@@ -269,6 +269,17 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 .panel.zooming.open .d-inner>*:nth-child(3){transition-delay:.8s}
 .panel.zooming.open .d-inner>*:nth-child(4){transition-delay:.9s}
 .panel.zooming.open .d-inner>*:nth-child(5){transition-delay:1s}
+.panel.zooming.open .d-inner>*:nth-child(6){transition-delay:1.1s}
+
+/* L astérisque de Fibre renvoie à la note du chapitre : les hiéroglyphes
+   qui s écrivent sous le curseur notent de l égyptien réel, pas du décor.
+   Discret sur la tuile, expliqué une fois entré. */
+.name .ast{font-size:.5em;vertical-align:super;margin-left:.12em;
+  opacity:.62;font-weight:600}
+.d-note{margin-top:24px;max-width:54ch;
+  font-family:'Spline Sans Mono',monospace;font-size:11px;line-height:1.75;
+  opacity:.5}
+.d-note i{font-style:normal;opacity:.9;letter-spacing:.06em}
 /* bouton retour */
 .back{position:absolute;top:26px;left:26px;z-index:40;
   font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.2em;
