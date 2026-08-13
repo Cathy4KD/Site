@@ -538,11 +538,31 @@ body.fond-sable .panel{filter:saturate(.88);
    chapitres, on ne met pas de <a> : la tuile est déjà un <button>, et
    imbriquer deux éléments interactifs produit du HTML invalide. L'attribut
    data-url et le gestionnaire de ui.js font le même travail. */
+/* Elle vivait au pied de la colonne de gauche, en concurrence avec la
+   biographie et la ligne de temps pour la même hauteur d'écran. Elle descend
+   d'un cran : le chapitre « moi » défile, présentation et parcours tiennent
+   le premier écran, les créations forment une bande pleine largeur en
+   dessous. Seul ce chapitre en a une, d'où la portée .p-moi. */
+/* Le voile était un ::before en inset:0 : dans une boîte qui défile il ne
+   couvre que le premier écran et la suite se lisait à même le portrait.
+   Un fond posé sur la boîte, lui, ne défile pas et tient toute la hauteur. */
+.p-moi .detail{display:block;padding:0;overflow-y:auto;overscroll-behavior:contain;
+  background:linear-gradient(100deg,rgba(4,10,16,.80) 0%,rgba(4,10,16,.58) 46%,rgba(4,10,16,.40) 100%)}
+.p-moi .detail::before{display:none}
+/* 86vh et non 100 : le titre de la section suivante dépasse juste assez pour
+   qu'on devine qu'il y a quelque chose sous la ligne de flottaison. */
+.p-moi .d-haut{display:flex;align-items:center;padding:0 8vw;min-height:86vh}
+
 .creations{margin-top:32px}
+.p-moi .creations{margin:0;padding:44px 8vw 14vh;color:#fff}
+.p-moi .creations::before{content:"";display:block;height:1px;margin-bottom:32px;
+  background:currentColor;opacity:.16}
 .creations h3{margin:0;font-family:'Spline Sans Mono',monospace;font-size:10px;
   font-weight:400;letter-spacing:.24em;text-transform:uppercase;opacity:.55}
 .grille{margin-top:14px;display:grid;gap:12px;
   grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.p-moi .grille{margin-top:18px;gap:14px;max-width:1080px;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
 .creation{padding:15px 17px;border-radius:10px;
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
   transition:background .25s ease,border-color .25s ease,transform .25s ease}

@@ -30,6 +30,11 @@
   function openChapter(panel){
     if(openPanel)return;
     openPanel=panel;
+    /* Le chapitre « moi » défile désormais — sans cette remise à zéro, le
+       rouvrir le rendait à l'endroit où on l'avait laissé, c'est-à-dire au
+       milieu des créations plutôt qu'à la présentation. */
+    const det=panel.querySelector('.detail');
+    if(det)det.scrollTop=0;
     const r=panel.getBoundingClientRect();
     /* clone visible : la tuile reste dans la rangée pendant le plein écran.
        Il naît à la largeur exacte de la tuile survolée (aucun rééquilibrage
