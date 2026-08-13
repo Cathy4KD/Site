@@ -171,8 +171,11 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 .sub{margin-top:4px;font-size:clamp(6px,3.2cqw,9.5px);color:rgba(255,255,255,.72);
   letter-spacing:.08em;text-transform:uppercase;font-family:'Spline Sans Mono',monospace}
 
-/* survol : ce qu'elle y a fait */
-.info{position:absolute;z-index:21;left:20px;right:20px;bottom:76px;color:#fff;
+/* survol : la date et le poste, rien de plus — le détail vient au clic */
+/* Ancré en bas : en perdant la liste de puces le bloc a fondu à deux lignes et
+   les 76px d'origine le faisaient retomber sur le « 05 » du label. Le label
+   ouvert monte à ~80px (20 de fond + num, nom en 24px et sous-titre). */
+.info{position:absolute;z-index:21;left:20px;right:20px;bottom:92px;color:#fff;
   pointer-events:none;opacity:0;transform:translateY(16px);
   /* l'encart suivait à 0,65 s (0,15 de retard + 0,5 de fondu) : il arrivait
      après coup quand on passait vite. Recalé sur la tuile. */
@@ -181,10 +184,10 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 #stage .panel:hover .info,#stage .panel:focus-visible .info{opacity:1;transform:none}
 .info .yr{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.2em}
 .info .co{margin-top:2px;font-weight:500;font-size:13.5px}
-.info ul{margin:10px 0 0;padding:0;list-style:none;font-weight:300;font-size:12px;line-height:1.55}
-.info li{margin-top:4px;padding-left:14px;position:relative;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
-.info li::before{content:"—";position:absolute;left:0;opacity:.6}
+/* Fibre porte deux passages (Cascades, puis le mandat Kruger) : la seconde
+   paire date/poste a besoin d'un palier, sinon les quatre lignes se lisent
+   comme un seul bloc. */
+.info .co + .yr{margin-top:9px}
 .panel.light .label,.panel.light .info{color:#33291d;text-shadow:0 1px 8px rgba(255,255,255,.6)}
 .panel.light .sub{color:rgba(70,58,40,.75)}
 
@@ -258,6 +261,8 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 .d-title{margin:18px 0 0;font-family:'Syne',sans-serif;font-weight:800;
   font-size:clamp(40px,5.5vw,84px);line-height:.98;letter-spacing:-.02em}
 .d-co{margin-top:12px;font-size:15px;font-weight:500;opacity:.9}
+/* deux employeurs dans le même chapitre : on les rapproche */
+.d-co + .d-co{margin-top:4px}
 .d-body{margin-top:22px;font-weight:300;font-size:15.5px;line-height:1.8;opacity:.88}
 .d-facts{margin-top:28px;display:flex;flex-wrap:wrap;gap:26px 38px;
   font-family:'Spline Sans Mono',monospace;font-size:11px;line-height:1.8}
