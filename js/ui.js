@@ -5,6 +5,25 @@
   if(['encre','voile','sable'].includes(essai))
     document.body.classList.add('fond-'+essai);
 
+  /* Bandeau de liens : le nom en toutes lettres tient lieu de repli tant que
+     le fichier du logo n'est pas déposé. Dès qu'une image charge, elle prend
+     la place du nom ; si elle manque, on la retire pour éviter l'icône brisée.
+     Déposer img/logo-pemac.svg ou img/logo-sti.svg suffit donc à basculer. */
+  document.querySelectorAll('.liens img').forEach(img=>{
+    img.addEventListener('load',()=>img.closest('a').classList.add('avec-logo'));
+    img.addEventListener('error',()=>img.remove());
+  });
+
+  /* Créations consultables : data-url plutôt que <a>, la tuile étant déjà
+     un <button>. On arrête la propagation pour que le clic n atteigne pas
+     la délégation de la rangée. */
+  document.addEventListener('click',e=>{
+    const l=e.target.closest('.c-lien[data-url]');
+    if(!l)return;
+    e.stopPropagation();
+    window.open(l.dataset.url,'_blank','noopener');
+  });
+
   /* zoom panneau → chapitre (FLIP) */
   let openPanel=null,spacer=null;
   function openChapter(panel){

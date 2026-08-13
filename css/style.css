@@ -215,19 +215,24 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 /* --det : largeur réservée aux détails, encore vides. --gout : la gouttière
    dans laquelle passe l'axe. Les colonnes se calent DESSUS, de sorte que l'axe
    tombe exactement au milieu du vide — pas à 50 % d'une largeur arbitraire. */
-.chrono{margin:0 0 0 auto;padding:0;list-style:none;position:relative;
-  width:min(46vw,660px);color:#fff;--det:200px;--gout:44px}
+/* Les longues listes — le chapitre Lait en compte dix-sept — doivent pouvoir
+   défiler sans déborder de l écran. L axe, lui, est posé sur la boîte et ne
+   défile pas : il tient toute la hauteur visible, ce qui est le bon repère. */
+.chrono{margin:0 0 0 auto;padding:0 8px 0 0;list-style:none;position:relative;
+  width:min(46vw,660px);color:#fff;--det:200px;--gout:44px;
+  max-height:74vh;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin}
 .panel.light .chrono{color:#33291d}
 .chrono::before{content:"";position:absolute;top:.4em;bottom:.4em;width:1.5px;
   left:calc(100% - var(--det) - var(--gout)/2);
   background:currentColor;opacity:.42}
 .chrono li{display:grid;grid-template-columns:1fr var(--det);
   column-gap:var(--gout);align-items:baseline;position:relative;
-  padding:clamp(10px,1.7vh,19px) 0}
+  padding:clamp(7px,1.2vh,15px) 0}
 /* la pastille, centrée sur l'axe */
 .chrono li::before{content:"";position:absolute;
   left:calc(100% - var(--det) - var(--gout)/2);
-  top:calc(clamp(10px,1.7vh,19px) + .52em);
+  top:calc(clamp(7px,1.2vh,15px) + .52em);
   width:9px;height:9px;margin:-4px 0 0 -3.75px;border-radius:50%;
   background:currentColor;box-shadow:0 0 0 3px rgba(4,10,16,.5)}
 .panel.light .chrono li::before{box-shadow:0 0 0 3px rgba(255,253,247,.7)}
@@ -481,3 +486,43 @@ body.fond-sable{
   --panel-shadow:0 26px 58px rgba(60,48,32,.26),0 8px 18px rgba(60,48,32,.16)}
 body.fond-sable .panel{filter:saturate(.88);
   box-shadow:var(--panel-shadow),inset 0 0 0 1px rgba(255,250,240,.28)}
+
+/* ===== BANDEAU DE LIENS =====
+   Affiliations et contact, sous la rangée. Chaque lien porte un logo ET son
+   nom en toutes lettres : le nom sert de repli tant que le fichier du logo
+   n'est pas là, et s'efface dès qu'il l'est. Rien à recoder au moment de les
+   déposer — voir la bascule dans ui.js. */
+.liens{display:flex;align-items:center;gap:clamp(18px,2.4vw,38px);
+  margin-top:2.2vh;padding-top:1.6vh;min-height:34px}
+.liens a{display:inline-flex;align-items:center;gap:9px;text-decoration:none;
+  color:var(--ink-60);font-family:'Spline Sans Mono',monospace;font-size:10.5px;
+  letter-spacing:.16em;text-transform:uppercase;
+  opacity:.72;transition:opacity .25s ease,color .25s ease}
+.liens a:hover,.liens a:focus-visible{opacity:1;color:var(--ink)}
+.liens a:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:3px}
+.liens svg{width:15px;height:15px;fill:currentColor;flex:none}
+/* le logo reste caché tant qu'il n'a pas chargé : pas d'icône brisée */
+.liens img{display:none;height:22px;width:auto;flex:none}
+.liens a.avec-logo img{display:block}
+.liens a.avec-logo span{display:none}
+@media (max-width:900px){
+  .liens{flex-wrap:wrap;gap:16px 22px;margin-top:18px}
+}
+
+/* ===== intertitres de la ligne de temps =====
+   Ils ordonnent les longues listes sans alourdir : pas de pastille, pas de
+   colonne de détail — un simple palier le long de l axe. */
+.chrono li.c-tete{padding:clamp(16px,2.4vh,30px) 0 2px}
+.chrono li.c-tete:first-child{padding-top:0}
+.chrono li.c-tete::before{display:none}
+/* un intertitre n a pas de détail à annoncer : pas de pointillés d attente */
+.chrono li.c-tete .c-det::before{content:none}
+.chrono li.c-tete .c-act{font-family:'Spline Sans Mono',monospace;font-size:9.5px;
+  letter-spacing:.24em;text-transform:uppercase;font-weight:400;opacity:.5}
+
+/* Une création consultable. On ne met pas de <a> : la tuile est déjà un
+   <button>, et imbriquer deux éléments interactifs produit du HTML invalide.
+   L attribut data-url et un gestionnaire dans ui.js font le même travail. */
+.c-lien{cursor:pointer;border-bottom:1px solid currentColor;
+  padding-bottom:1px;transition:opacity .2s ease}
+.c-lien:hover{opacity:.68}
