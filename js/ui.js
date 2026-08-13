@@ -14,11 +14,12 @@
     img.addEventListener('error',()=>img.remove());
   });
 
-  /* Créations consultables : data-url plutôt que <a>, la tuile étant déjà
-     un <button>. On arrête la propagation pour que le clic n atteigne pas
-     la délégation de la rangée. */
+  /* Créations consultables : data-url plutôt que <a>, la tuile étant déjà un
+     <button> et l'imbrication de deux éléments interactifs étant invalide.
+     On arrête la propagation pour que le clic n'atteigne pas la délégation
+     de la rangée, qui ouvrirait ou fermerait le chapitre. */
   document.addEventListener('click',e=>{
-    const l=e.target.closest('.c-lien[data-url]');
+    const l=e.target.closest('[data-url]');
     if(!l)return;
     e.stopPropagation();
     window.open(l.dataset.url,'_blank','noopener');

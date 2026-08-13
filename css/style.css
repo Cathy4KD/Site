@@ -526,3 +526,29 @@ body.fond-sable .panel{filter:saturate(.88);
 .c-lien{cursor:pointer;border-bottom:1px solid currentColor;
   padding-bottom:1px;transition:opacity .2s ease}
 .c-lien:hover{opacity:.68}
+
+/* ===== MES CRÉATIONS =====
+   Une sous-section du chapitre Catherine : des cartes cliquables, chacune
+   ouvrant une page autonome dans un nouvel onglet. Comme partout dans les
+   chapitres, on ne met pas de <a> : la tuile est déjà un <button>, et
+   imbriquer deux éléments interactifs produit du HTML invalide. L'attribut
+   data-url et le gestionnaire de ui.js font le même travail. */
+.creations{margin-top:32px}
+.creations h3{margin:0;font-family:'Spline Sans Mono',monospace;font-size:10px;
+  font-weight:400;letter-spacing:.24em;text-transform:uppercase;opacity:.55}
+.grille{margin-top:14px;display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.creation{padding:15px 17px;border-radius:10px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+  transition:background .25s ease,border-color .25s ease,transform .25s ease}
+.creation[data-url]{cursor:pointer}
+.creation[data-url]:hover{background:rgba(255,255,255,.13);
+  border-color:rgba(255,255,255,.26);transform:translateY(-2px)}
+.creation h4{margin:0;font-size:14px;font-weight:500;line-height:1.35}
+.creation p{margin:6px 0 0;font-family:'Spline Sans Mono',monospace;
+  font-size:10.5px;line-height:1.6;opacity:.62}
+/* sur une matière claire, le contraste s'inverse */
+.panel.light .creation{background:rgba(40,32,20,.06);border-color:rgba(40,32,20,.14)}
+.panel.light .creation[data-url]:hover{background:rgba(40,32,20,.11);
+  border-color:rgba(40,32,20,.26)}
+@media (max-width:900px){.grille{grid-template-columns:1fr}}

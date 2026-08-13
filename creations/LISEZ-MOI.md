@@ -7,15 +7,26 @@ possible, pour qu'elles s'ouvrent d'un double-clic comme en ligne.
     ├── ma-premiere-creation.html
     └── une-autre.html
 
-Puis ajoutez une ligne à la liste « Mes créations » du chapitre Catherine, dans
-`index.html` :
+Puis ajoutez une carte dans la sous-section « Mes créations » du chapitre
+Catherine, dans `index.html` :
 
 ```html
-<li><span class="c-act c-lien" data-url="creations/ma-premiere-creation.html">Le titre</span><span class="c-det">deux mots sur la technique</span></li>
+<article class="creation" data-url="creations/ma-premiere-creation.html">
+  <h4>Le titre</h4>
+  <p>deux mots sur la technique</p>
+</article>
 ```
 
-L'attribut `data-url` suffit : le titre devient cliquable et s'ouvre dans un
-nouvel onglet. On ne met pas de balise `<a>` — la tuile est déjà un `<button>`,
-et imbriquer deux éléments interactifs produit du HTML invalide.
+La grille se remplit toute seule : les cartes s'alignent sur trois colonnes en
+grand écran, une seule sur téléphone, sans rien avoir à régler.
 
-Les fichiers déposés ici sont mis en ligne au prochain `firebase deploy`.
+## Deux règles
+
+**`data-url`, jamais `<a>`.** La tuile est déjà un `<button>` ; imbriquer deux
+éléments interactifs produit du HTML invalide. L'attribut et le gestionnaire de
+`js/ui.js` font le même travail, et ouvrent la page dans un nouvel onglet.
+
+**Une carte sans `data-url` reste affichée mais n'est pas cliquable** — pratique
+pour annoncer une création en préparation.
+
+Les fichiers déposés ici partent en ligne au prochain `firebase deploy`.
