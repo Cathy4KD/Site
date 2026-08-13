@@ -300,6 +300,8 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 /* deux employeurs dans le même chapitre : on les rapproche */
 .d-co + .d-co{margin-top:4px}
 .d-body{margin-top:22px;font-weight:300;font-size:15.5px;line-height:1.8;opacity:.88}
+/* un texte suivi : les paragraphes se serrent entre eux, l'air reste avant le premier */
+.d-body + .d-body{margin-top:15px}
 .d-facts{margin-top:28px;display:flex;flex-wrap:wrap;gap:26px 38px;
   font-family:'Spline Sans Mono',monospace;font-size:11px;line-height:1.8}
 .d-facts b{display:block;font-size:13px;font-weight:400}
@@ -316,6 +318,11 @@ body.chapter-open #stage .panel:not(.zooming):hover{flex:1}
 .panel.zooming.open .d-inner>*:nth-child(4){transition-delay:.9s}
 .panel.zooming.open .d-inner>*:nth-child(5){transition-delay:1s}
 .panel.zooming.open .d-inner>*:nth-child(6){transition-delay:1.1s}
+/* le chapitre « moi » compte cinq paragraphes : sans ces crans, les derniers
+   arrivaient d'un bloc pendant que les premiers montaient encore */
+.panel.zooming.open .d-inner>*:nth-child(7){transition-delay:1.2s}
+.panel.zooming.open .d-inner>*:nth-child(8){transition-delay:1.3s}
+.panel.zooming.open .d-inner>*:nth-child(9){transition-delay:1.4s}
 
 /* L astérisque de Fibre renvoie à la note du chapitre : les hiéroglyphes
    qui s écrivent sous le curseur notent de l égyptien réel, pas du décor.
